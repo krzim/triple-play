@@ -181,18 +181,23 @@ def regenerate_workflow_ids(workflow):
         prev_id = action['id_']
         action['id_'] = str(uuid4())
         id_mapping[prev_id] = action['id_']
+        action['position']['id_'] = str(uuid4())
+        for param in workflow.get('parameters', []):
+            param['id_'] = str(uuid4())
 
     conditions = workflow.get('conditions', [])
     for condition in conditions:
         prev_id = condition['id_']
         condition['id_'] = str(uuid4())
         id_mapping[prev_id] = condition['id_']
+        condition['position']['id_'] = str(uuid4())
 
     transforms = workflow.get('transforms', [])
     for transform in transforms:
         prev_id = transform['id_']
         transform['id_'] = str(uuid4())
         id_mapping[prev_id] = transform['id_']
+        transform['position']['id_'] = str(uuid4())
 
     workflow_variables = workflow.get('workflow_variables', [])
     for workflow_variable in workflow_variables:
@@ -290,14 +295,12 @@ def read_and_indent(filename, indent):
 
 def validate_uuid4(id_, stringify=False):
     try:
-        uuid_ = UUID(id_, version=4)
+        uuid_ = id_
+        if not isinstance(uuid_, UUID):
+            uuid_ = UUID(uuid_, version=4)
         return uuid_ if not stringify else id_
     except (ValueError, TypeError):
         return None
-    # except TypeError:
-    #     r = uuid4()
-    #     logger.error(f"{id_} is not a valid uuid4, generating new uuid4: f{r}")
-    #     return r
 
 
 def compose_api(config):
@@ -318,6 +321,7 @@ def compose_api(config):
                 final_yaml.append(line)
     with open(os.path.join(config.API_PATH, 'composed_api.yaml'), 'w') as composed_yaml:
         composed_yaml.writelines(final_yaml)
+        logger.info("Wrote composed_api.yaml")
 
 
 class ExecutionError(Exception):

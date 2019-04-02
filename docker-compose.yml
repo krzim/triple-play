@@ -1,34 +1,55 @@
-version: '3.4'
+version: '3.5'
 services:
-#  umpire:
-#    image: localhost:5000/umpire:latest
-#    build:
-#      context: ./
-#      dockerfile: umpire/Dockerfile
-#
-#    volumes:
-#      - "/var/run/docker.sock:/var/run/docker.sock"
-#    deploy:
-#      placement:
-#        constraints: [node.role==manager]
-#    depends_on:
-#      - redis
+  umpire:
+    image: localhost:5000/umpire:latest
+    build:
+     context: ./
+     dockerfile: umpire/Dockerfile
+    networks:
+     - walkoff_default
+    volumes:
+     - /var/run/docker.sock:/var/run/docker.sock
+     - ./apps:/app/apps
+    environment:
+     - DOCKER_HOST=unix:///var/run/docker.sock
+    deploy:
+     placement:
+       constraints: [node.role==manager]
+    depends_on:
+     - redis
+
+  app_sdk:
+    build:
+      context: ./app_sdk
+      dockerfile: ./Dockerfile
+    image: walkoff_app_sdk
+
+  worker:
+    image: localhost:5000/worker
+    build:
+      context: ./
+      dockerfile: worker/Dockerfile
+    command: echo "Successfully built local worker image."
 
   registry:
     restart: always
     image: registry:2
     deploy:
       placement:
-       constraints: [node.role==manager]
+        constraints: [node.role==manager]
     ports:
       - 5000:5000
-#    environment:
-#      REGISTRY_HTTP_TLS_CERTIFICATE: /certs/domain.crt
-#      REGISTRY_HTTP_TLS_KEY: /certs/domain.key
-#      REGISTRY_AUTH: htpasswd
-#      REGISTRY_AUTH_HTPASSWD_PATH: /auth/htpasswd
-#      REGISTRY_AUTH_HTPASSWD_REALM: Registry Realm
+    networks:
+      - walkoff_default
+    # The commented lines are needed to enable auth on the custom registry
+    #    environment:
+    #      REGISTRY_HTTP_TLS_CERTIFICATE: /certs/domain.crt
+    #      REGISTRY_HTTP_TLS_KEY: /certs/domain.key
+    #      REGISTRY_AUTH: htpasswd
+    #      REGISTRY_AUTH_HTPASSWD_PATH: /auth/htpasswd
+    #      REGISTRY_AUTH_HTPASSWD_REALM: Registry Realm
     volumes:
+<<<<<<< HEAD
 #      - ./data/config.yml:/etc/docker/registry/config.yml
       - /var/lib/boot2docker/registry:/var/lib/registry
 #      - /var/lib/boot2docker:/certs
@@ -57,25 +78,24 @@ services:
      mode: replicated
      replicas: 10
 
+=======
+      #      - ./data/config.yml:/etc/docker/registry/config.yml
+      - ./data/registry:/var/lib/registry
+  #      - /var/lib/boot2docker:/certs
+  #      - /var/lib/boot2docker/auth:/auth
+>>>>>>> 419e238dd2d8e0885eb1a2f41604cfa0f330ef62
 
-#  test-app:
-#    build:
-#      context: ./apps/TestApp/v0.1.1/
-#      dockerfile: Dockerfile
-#    env_file:
-#      - apps/TestApp/v0.1.1/env.txt
-#    depends_on:
-#      - redis
-#
-  walkoff:
+  api_gateway:
     ports:
     - "8080:8080"
-    image: "localhost:5000/walkoff:latest"
+    image: "localhost:5000/api_gateway:latest"
     build:
       context: ./
       dockerfile: ./api_gateway/Dockerfile
+    networks:
+      - walkoff_default
     environment:
-    - "CACHE={\"type\": \"redis\", \"host\": \"redis\", \"port\": 6379}"
+    - "REDIS_OPTIONS={\"host\": \"redis\", \"port\": 6379}"
     - "IP=0.0.0.0"
     - "PORT=8080"
     - "WALKOFF_DB_TYPE=postgresql"
@@ -88,20 +108,17 @@ services:
     - "EXECUTION_DB_PASSWORD=walkoff"
     - "WALKOFF_DB_USERNAME=walkoff"
     - "WALKOFF_DB_PASSWORD=walkoff"
-    depends_on:
-    - "redis"
-    - "postgres"
     stop_signal: SIGINT
     stop_grace_period: 30s
+
 
   redis:
     container_name: redis
     image: "redis"
     ports:
       - 6379:6379
-#    deploy:
-#      placement:
-#        constraints: [node.role==manager]
+    networks:
+      - walkoff_default
 #    volumes:
 #      - /var/lib/boot2docker/redis:/data
 
@@ -113,8 +130,15 @@ services:
     - "POSTGRES_PASSWORD=walkoff"
     ports:
       - 5432:5432
-#    deploy:
-#      placement:
-#        constraints: [node.role==manager]
+    deploy:
+      placement:
+        constraints: [node.role==manager]
+    networks:
+      - walkoff_default
 #    volumes:
 #      - /var/lib/boot2docker/postgresql/data:/var/lib/postgresql/data
+
+networks:
+  walkoff_default:
+    driver: overlay
+    name: walkoff_default

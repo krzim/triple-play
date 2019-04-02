@@ -3,8 +3,11 @@ import logging
 from sqlalchemy import Column, String, ForeignKey, orm, event
 from sqlalchemy.orm import relationship
 from sqlalchemy_utils import UUIDType, JSONType
+from marshmallow import fields, EXCLUDE
+from marshmallow_sqlalchemy import field_for
 
-from api_gateway.appgateway.apiutil import InvalidParameter
+from api_gateway.executiondb.schemas import ExecutionElementBaseSchema
+from api_gateway.executiondb.position import PositionSchema
 from api_gateway.executiondb import Execution_Base
 from api_gateway.executiondb.executionelement import ExecutionElement
 
@@ -45,11 +48,7 @@ class Transform(ExecutionElement, Execution_Base):
     def validate(self):
         """Validates the object"""
         errors = []
-        try:
-            pass
-        except InvalidParameter as e:
-            errors.extend(e.errors)
-        self.errors = errors
+        pass
 
     @orm.reconstructor
     def init_on_load(self):
@@ -60,3 +59,19 @@ class Transform(ExecutionElement, Execution_Base):
 @event.listens_for(Transform, 'before_update')
 def validate_before_update(mapper, connection, target):
     target.validate()
+
+
+
+class TransformSchema(ExecutionElementBaseSchema):
+    """Schema for transforms
+    """
+
+    name = field_for(Transform, 'name', required=True)
+    transform = field_for(Transform, 'transform', required=True)
+    parameter = fields.Raw()
+    # parameter = fields.Nested(ParameterSchema())
+    position = fields.Nested(PositionSchema())
+
+    class Meta:
+        model = Transform
+        unknown = EXCLUDE

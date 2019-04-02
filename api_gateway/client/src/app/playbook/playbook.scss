@@ -3,10 +3,61 @@
 
 #main.playbookMain {
 	padding: 10px 15px 0 15px;
+	position: relative;
 }
+
+#main.playbookMain:before {
+	content: "\f0e8"; 
+	font-family: FontAwesome;
+	font-style: normal;
+	font-weight: normal;
+	text-decoration: inherit;
+	position: fixed;
+	font-size: 50rem;
+	color: #38607724;
+	right: 4rem;
+	margin-top: -8rem;
+	z-index: -1;
+  }
 
 .playbookMain .parametersEditor .failure {
     color: crimson;
+}
+
+.instruction-container {
+	height: 500px;
+	width: 100%;
+
+	> .card {
+		max-width: 50%;
+	}
+}
+
+#playbookBreadcrumbs {
+	background-color: unset;
+	margin-block-end: unset;
+	padding-inline-start: unset;
+	font-weight: bold;
+	font-size: 1.5rem;
+
+	a {
+		text-decoration: none;
+	}
+}
+
+.workflow-card {
+	height: 100%;
+	max-height: 300px;
+
+	.card-body {
+		overflow: hidden;
+	}
+
+	.card-text {
+		min-height: 0;
+		overflow: hidden;
+  		text-overflow: ellipsis;
+	}
 }
 
 #playbookToolbar {
@@ -48,7 +99,6 @@
 }
 
 #currentWorkflowText {
-	margin-left: 20px;
 	margin-top: 10px;
 	font-size: 18px;
 }
@@ -65,6 +115,18 @@
 
 .playbookMain .panel-heading.playbook-heading {
 	cursor: pointer;
+}
+
+.workflow-menu {
+	cursor: pointer;
+	padding: unset;
+	position: absolute;
+	top: 0px;
+	right: 0px;
+
+	.workflow-menu-link::after {
+		content: none;
+	}
 }
 
 #playbookEditorTabs {

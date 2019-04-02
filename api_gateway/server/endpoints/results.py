@@ -7,7 +7,7 @@ from datetime import datetime
 import gevent
 from gevent.queue import Queue
 
-from flask import Flask, Response, current_app, request, jsonify
+from flask import Blueprint, Response, current_app, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_claims
 
 from marshmallow import ValidationError
@@ -16,9 +16,9 @@ from sqlalchemy.exc import IntegrityError, StatementError
 import jsonpatch
 
 from api_gateway.server.decorators import with_resource_factory, paginate, is_valid_uid
-from api_gateway.executiondb.workflow import Workflow
-from api_gateway.executiondb.workflowresults import WorkflowStatus, ActionStatus
-from api_gateway.executiondb.schemas import WorkflowSchema, WorkflowStatusSchema, ActionStatusSchema
+from api_gateway.executiondb.workflow import Workflow, WorkflowSchema
+from api_gateway.executiondb.workflowresults import (WorkflowStatus, ActionStatus, WorkflowStatusSchema,
+                                                     ActionStatusSchema)
 
 from api_gateway.security import permissions_accepted_for_resources, ResourcePermissions
 from api_gateway.server.problem import unique_constraint_problem, improper_json_problem, invalid_id_problem
@@ -45,7 +45,7 @@ with_workflow_status = with_resource_factory('workflow', workflow_status_getter,
 action_status_schema = ActionStatusSchema()
 workflow_status_schema = WorkflowStatusSchema()
 
-results_stream = Flask(__name__)
+results_stream = Blueprint('results_stream', __name__)
 workflow_stream_subs = {}
 action_stream_subs = {}
 
@@ -98,9 +98,9 @@ def push_to_action_stream_queue(action_statuses, event):
 #         current_app.running_context.execution_db.session.rollback()
 #         return unique_constraint_problem('workflow_status', 'create', workflow.name)
 
-
-@jwt_required
-@permissions_accepted_for_resources(ResourcePermissions("workflowstatus", ["create"]))
+# TODO: maybe make an internal user for the worker/umpire?
+# @jwt_required
+# @permissions_accepted_for_resources(ResourcePermissions("workflowstatus", ["create"]))
 @with_workflow_status('update', 'execution_id')
 def update_workflow_status(execution_id):
     old_workflow_status = workflow_status_schema.dump(execution_id)
@@ -169,7 +169,7 @@ def workflow_stream():
     return Response(workflow_results_generator(), mimetype="test/event-stream")
 
 
-@results_stream.route('/action_status')
+@results_stream.route('/actions')
 def action_stream():
     execution_id = request.args.get('workflow_execution_id', 'all')
     if execution_id != 'all':

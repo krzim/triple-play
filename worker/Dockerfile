@@ -6,14 +6,17 @@ RUN apk --no-cache add --update alpine-sdk
 RUN mkdir /install
 WORKDIR /install
 
-COPY requirements.txt /requirements.txt
+COPY ./worker/requirements.txt /requirements.txt
 
+RUN pip install --prefix="/install" --no-deps asteval
+RUN pip install --prefix="/install" six
 RUN pip install --prefix="/install" -r /requirements.txt
 
 FROM base
 
 COPY --from=builder /install /usr/local
-COPY ./ /app
+COPY ./common /app/common
+COPY ./worker /app/worker
 
 WORKDIR /app
 

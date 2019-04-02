@@ -3,8 +3,11 @@ import logging
 from sqlalchemy import Column, String, ForeignKey, orm, event
 from sqlalchemy.orm import relationship
 from sqlalchemy_utils import UUIDType
+from marshmallow import fields, EXCLUDE
+from marshmallow_sqlalchemy import field_for
 
-from api_gateway.appgateway.apiutil import InvalidParameter
+from api_gateway.executiondb.schemas import ExecutionElementBaseSchema
+from api_gateway.executiondb.position import PositionSchema
 from api_gateway.executiondb import Execution_Base
 from api_gateway.executiondb.executionelement import ExecutionElement
 
@@ -40,11 +43,7 @@ class Trigger(ExecutionElement, Execution_Base):
     def validate(self):
         """Validates the object"""
         errors = []
-        try:
-            pass
-        except InvalidParameter as e:
-            errors.extend(e.errors)
-        self.errors = errors
+        pass
 
     @orm.reconstructor
     def init_on_load(self):
@@ -55,3 +54,18 @@ class Trigger(ExecutionElement, Execution_Base):
 @event.listens_for(Trigger, 'before_update')
 def validate_before_update(mapper, connection, target):
     target.validate()
+
+
+
+class TriggerSchema(ExecutionElementBaseSchema):
+    """Schema for triggers
+    """
+
+    name = field_for(Trigger, 'name', required=True)
+    trigger = field_for(Trigger, 'trigger', required=True)
+    position = fields.Nested(PositionSchema())
+
+    class Meta:
+        model = Trigger
+        unknown = EXCLUDE
+

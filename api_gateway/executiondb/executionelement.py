@@ -14,10 +14,10 @@ class ExecutionElement(Validatable):
         if id_:
             self.id_ = id_
         if errors:
-            self.errors = errors
+            self.errors = errors if errors else []
 
     def __repr__(self):
-        from .schemas import dump_element
+        from .model_schema_map import dump_element
 
         representation = dump_element(self)
         out = '<{0} at {1} : '.format(self.__class__.__name__, hex(id(self)))

@@ -15,11 +15,13 @@ export class Action extends ExecutionElement {
 
 	app_name: string;
 
+	app_version: string;
+
 	@Expose({ name: 'name' })
 	action_name: string;
 
-	@Type(() => Argument)
-	global_id?: Argument = new Argument();
+	// @Type(() => Argument)
+	// global_id?: Argument = new Argument();
 
 	risk?: number;
 

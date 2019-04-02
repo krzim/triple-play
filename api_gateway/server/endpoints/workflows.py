@@ -8,9 +8,7 @@ from marshmallow import ValidationError
 from sqlalchemy import exists, and_
 from sqlalchemy.exc import IntegrityError, StatementError
 
-from api_gateway.appgateway.apiutil import UnknownApp, UnknownFunction, InvalidParameter
-from api_gateway.executiondb.schemas import WorkflowSchema
-from api_gateway.executiondb.workflow import Workflow
+from api_gateway.executiondb.workflow import Workflow, WorkflowSchema
 from api_gateway.helpers import regenerate_workflow_ids
 # from api_gateway.helpers import strip_device_ids, strip_argument_ids
 from api_gateway.security import permissions_accepted_for_resources, ResourcePermissions
@@ -20,8 +18,6 @@ from api_gateway.server.problem import Problem, unique_constraint_problem, impro
 from http import HTTPStatus
 
 workflow_schema = WorkflowSchema()
-
-invalid_execution_element_exceptions = (InvalidParameter, UnknownApp, UnknownFunction)
 
 
 def does_workflow_exist(workflow_id):
@@ -59,7 +55,6 @@ def create_workflow():
 
     try:
         workflow = workflow_schema.load(data)
-        print(dir(workflow))
         current_app.running_context.execution_db.session.add(workflow)
         current_app.running_context.execution_db.session.commit()
         current_app.logger.info(f"Created Workflow {workflow.name} ({workflow.id_})")
@@ -67,7 +62,7 @@ def create_workflow():
     except ValidationError as e:
         current_app.running_context.execution_db.session.rollback()
         return improper_json_problem('workflow', 'create', workflow_name, e.messages)
-    except IntegrityError:
+    except IntegrityError:  # ToDo: Make sure this fires on duplicate
         current_app.running_context.execution_db.session.rollback()
         return unique_constraint_problem('workflow', 'create', workflow_name)
 
@@ -80,7 +75,6 @@ def copy_workflow(workflow_id):
     workflow_json['name'] = data.get("name", f"{workflow_id.name}_copy")
 
     regenerate_workflow_ids(workflow_json)
-
     try:
         new_workflow = workflow_schema.load(workflow_json)
         current_app.running_context.execution_db.session.add(new_workflow)
@@ -98,6 +92,8 @@ def copy_workflow(workflow_id):
 @paginate(workflow_schema)
 def read_all_workflows():
     r = current_app.running_context.execution_db.session.query(Workflow).order_by(Workflow.name).all()
+    for workflow in r:
+        workflow_schema.dump(workflow)
     return r, HTTPStatus.OK
 
 
@@ -120,7 +116,6 @@ def read_workflow(workflow_id):
 @with_workflow('update', 'workflow_id')
 def update_workflow(workflow_id):
     data = request.get_json()
-
     errors = workflow_schema.load(data, instance=workflow_id).errors
     if errors:
         return invalid_input_problem("workflow", "update", data["name"], errors)

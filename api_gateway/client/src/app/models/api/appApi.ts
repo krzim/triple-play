@@ -6,8 +6,35 @@ import { TransformApi } from './transformApi';
 import { DeviceApi } from './deviceApi';
 
 export class AppApi {
+
+	@Expose({ name: 'id_'})
+	id: string;
+
 	name: string;
 
+	walkoff_version?: string;
+
+	app_version?: string;
+
+	description?: string;
+
+	contact?: {
+		name: string,
+		url: string,
+		email: string
+	};
+
+	license?: {
+		name: string,
+		url: string
+	};
+
+	tags?: any[];
+
+	external_docs?: any[];
+
+
+	@Expose({ name: 'actions'})
 	@Type(() => ActionApi)
 	action_apis?: ActionApi[] = [];
 

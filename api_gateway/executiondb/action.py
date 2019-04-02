@@ -3,20 +3,55 @@ import logging
 from sqlalchemy import Column, ForeignKey, String, Integer, orm, event
 from sqlalchemy.orm import relationship
 from sqlalchemy_utils import UUIDType
+from marshmallow import fields, EXCLUDE
+from marshmallow_sqlalchemy import field_for
 
-from api_gateway.appgateway.apiutil import get_app_action_api, UnknownApp, UnknownAppAction, InvalidParameter
-from api_gateway.appgateway.validator import validate_app_action_parameters
 from api_gateway.executiondb import Execution_Base
-from api_gateway.executiondb.parameter import Parameter
+from api_gateway.executiondb.parameter import Parameter, ParameterSchema, ParameterApiSchema
+from api_gateway.executiondb.returns import ReturnApi, ReturnApiSchema
+from api_gateway.executiondb.position import PositionSchema
 from api_gateway.executiondb.executionelement import ExecutionElement
+from api_gateway.executiondb.schemas import ExecutionElementBaseSchema
 
 logger = logging.getLogger(__name__)
+
+
+class ActionApi(ExecutionElement, Execution_Base):
+    __tablename__ = 'action_api'
+    name = Column(String(), nullable=False)
+    description = Column(String())
+    returns = relationship("ReturnApi", uselist=False, cascade="all, delete-orphan", passive_deletes=True)
+    parameters = relationship("ParameterApi", cascade="all, delete-orphan", passive_deletes=True)
+    app_api_id = Column(UUIDType(binary=False), ForeignKey('app_api.id_', ondelete='CASCADE'))
+    action_id = Column(UUIDType(binary=False), ForeignKey('action.id_', ondelete='CASCADE'))
+
+    def __init__(self, name, id_=None, errors=None, description=None, returns=None, parameters=None):
+        ExecutionElement.__init__(self, id_, errors)
+
+        self.name = name
+        self.description = description if description else ""
+        self.returns = returns
+        self.parameters = parameters if parameters else []
+
+
+class ActionApiSchema(ExecutionElementBaseSchema):
+    """Schema for actions
+    """
+    name = field_for(ActionApi, 'name', required=True)
+    description = field_for(ActionApi, 'description')
+    returns = fields.Nested(ReturnApiSchema())
+    parameters = fields.Nested(ParameterApiSchema, many=True)
+
+    class Meta:
+        model = ActionApi
+        unknown = EXCLUDE
 
 
 class Action(ExecutionElement, Execution_Base):
     __tablename__ = 'action'
     workflow_id = Column(UUIDType(binary=False), ForeignKey('workflow.id_', ondelete='CASCADE'))
     app_name = Column(String(80), nullable=False)
+    app_version = Column(String(80), nullable=False)
     name = Column(String(80), nullable=False)
     label = Column(String(80), nullable=False)
     priority = Column(Integer)
@@ -26,7 +61,7 @@ class Action(ExecutionElement, Execution_Base):
     position = relationship('Position', uselist=False, cascade='all, delete-orphan', passive_deletes=True)
     children = ('parameters',)
 
-    def __init__(self, app_name, name, label, priority=3, id_=None, parameters=None,
+    def __init__(self, app_name, app_version, name, label, priority=3, id_=None, parameters=None,
                  position=None, errors=None):
         """Initializes a new Action object. A Workflow has one or more actions that it executes.
         Args:
@@ -43,47 +78,60 @@ class Action(ExecutionElement, Execution_Base):
         ExecutionElement.__init__(self, id_, errors)
 
         self.app_name = app_name
+        self.app_version = app_version
         self.name = name
         self.label = label
         self.priority = priority
 
-        self.parameters = []
-        if parameters:
-            self.parameters = parameters
+        self.parameters = parameters if parameters else []
 
         self.position = position
 
-        self._arguments_api = None
         self.validate()
 
     @orm.reconstructor
     def init_on_load(self):
         """Loads all necessary fields upon Action being loaded from database"""
         if not self.errors:
-            errors = []
-            try:
-                self._arguments_api = get_app_action_api(self.app_name, self.name)
-            except UnknownApp:
-                errors.append(f'Unknown app {self.app_name}')
-            except UnknownAppAction:
-                errors.append(f'Unknown app action {self.name}')
-            self.errors = errors
+            self.errors = []
+        #     try:
+        #         self._arguments_api = get_app_action_api(self.app_name, self.name)
+        #     except UnknownApp:
+        #         errors.append(f'Unknown app {self.app_name}')
+        #     except UnknownAppAction:
+        #         errors.append(f'Unknown app action {self.name}')
+        #     self.errors = errors
 
     def validate(self):
         """Validates the object"""
-        errors = []
-        try:
-            self._arguments_api = get_app_action_api(self.app_name, self.name)
-            validate_app_action_parameters(self._arguments_api, self.parameters, self.app_name, self.name)
-        except UnknownApp:
-            errors.append(f'Unknown app {self.app_name}')
-        except UnknownAppAction:
-            errors.append(f'Unknown app action {self.name}')
-        except InvalidParameter as e:
-            errors.extend(e.errors)
-        self.errors = errors
+        self.errors = []
+        # try:
+        #     validate_app_action_parameters(self._arguments_api, self.parameters, self.app_name, self.name)
+        # except UnknownApp:
+        #     errors.append(f'Unknown app {self.app_name}')
+        # except UnknownAppAction:
+        #     errors.append(f'Unknown app action {self.name}')
+        # except InvalidParameter as e:
+        #     errors.extend(e.errors)
+        # self.errors = errors
 
 
 @event.listens_for(Action, 'before_update')
 def validate_before_update(mapper, connection, target):
     target.validate()
+
+
+class ActionSchema(ExecutionElementBaseSchema):
+    """Schema for actions
+    """
+    app_name = field_for(Action, 'app_name', required=True)
+    app_version = field_for(Action, 'app_version', required=True)
+    name = field_for(Action, 'name', required=True)
+    label = field_for(Action, 'label', required=True)
+    parameters = fields.Nested(ParameterSchema, many=True)
+    priority = field_for(Action, 'priority', default=3)
+    position = fields.Nested(PositionSchema())
+
+    class Meta:
+        model = Action
+        unknown = EXCLUDE

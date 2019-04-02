@@ -13,8 +13,9 @@ FROM base
 
 COPY --from=builder /install /usr/local
 RUN apk --no-cache add --update libpq
-COPY ./ /app
+COPY ./common /app/common
+COPY ./api_gateway /app/api_gateway
 WORKDIR /app
 
 
-CMD python -m api_gateway.walkoff
+CMD gunicorn --reload -t 999999999 -k gevent -b $IP:$PORT api_gateway.walkoff:app
