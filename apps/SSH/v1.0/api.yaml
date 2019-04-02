@@ -1,0 +1,166 @@
+walkoff: '0.1'
+info:
+  version: 1.0.0
+  title: SSH App
+  description: Executes ssh shell commands via SSH
+  contact:
+    name: Walkoff Team
+  license:
+    name: Creative Commons
+actions:
+  Execute Command:
+    run: app.SSH.exec_command
+    description: Execute command on remote server with SSH client
+    parameters:
+      - name: args
+        required: true
+        type: array
+        description: json array of arguments
+        items:
+          type: string
+      - name: ip
+        type: string
+        description: ip or hostname of the remote server
+        required: true
+      - name: port
+        type: integer
+        description: port number
+        minimum: 1
+        maximum: 65535
+        required: true
+      - name: username
+        type: string
+        description: username to login with
+        required: true
+      - name: password
+        type: string
+        description: password to login with
+        required: true
+    returns:
+      Success:
+        schema:
+          type: string
+  SFTP Put:
+    run: app.SSH.sftp_put
+    description: Copy local file to remove server using sftp
+    parameters:
+      - name: local_path
+        required: true
+        type: string
+        description: local path of the file to copy
+      - name: remote_path
+        required: true
+        type: string
+        description: remote path of the file destination
+      - name: ip
+        type: string
+        description: ip or hostname of the remote server
+        required: true
+      - name: port
+        type: integer
+        description: port number
+        minimum: 1
+        maximum: 65535
+        required: true
+      - name: username
+        type: string
+        description: username to login with
+        required: true
+      - name: password
+        type: string
+        description: password to login with
+        required: true
+    returns:
+      Success:
+        schema:
+          type: string
+  SFTP Get:
+    run: app.SSH.sftp_get
+    description: Copy remote file to local using sftp
+    parameters:
+      - name: remote_path
+        required: true
+        type: string
+        description: remote path of the file to copy
+      - name: local_path
+        required: true
+        type: string
+        description: local path of the file destination
+      - name: ip
+        type: string
+        description: ip or hostname of the remote server
+        required: true
+      - name: port
+        type: integer
+        description: port number
+        minimum: 1
+        maximum: 65535
+        required: true
+      - name: username
+        type: string
+        description: username to login with
+        required: true
+      - name: password
+        type: string
+        description: password to login with
+        required: true
+    returns:
+      Success:
+        schema:
+          type: string
+  Run Shell Script Remotely:
+    run: app.SSH.run_shell_script_remotely
+    description: runs the specified shell script on the remote server
+    parameters:
+      - name: local_path
+        required: true
+        type: string
+        description: local path of the shell script to run
+      - name: ip
+        type: string
+        description: ip or hostname of the remote server
+        required: true
+      - name: port
+        type: integer
+        description: port number
+        minimum: 1
+        maximum: 65535
+        required: true
+      - name: username
+        type: string
+        description: username to login with
+        required: true
+      - name: password
+        type: string
+        description: password to login with
+        required: true
+    returns:
+      Success:
+        schema:
+          type: string
+  Shutdown:
+    run: app.SSH.shutdown
+    description: closes the SSH connection
+    parameters:
+      - name: ip
+        type: string
+        description: ip or hostname of the remote server
+        required: true
+      - name: port
+        type: integer
+        description: port number
+        minimum: 1
+        maximum: 65535
+        required: true
+      - name: username
+        type: string
+        description: username to login with
+        required: true
+      - name: password
+        type: string
+        description: password to login with
+        required: true
+    returns:
+      Success:
+        schema:
+          type: boolean

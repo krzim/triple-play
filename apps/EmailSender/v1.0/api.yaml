@@ -1,0 +1,64 @@
+walkoff: '0.1'
+info:
+  version: 1.0.0
+  title: EmailSender
+  description: A simple SMTP email sender
+  contact:
+    name: Walkoff Team
+  license:
+    name: Creative Commons
+actions:
+  send email:
+    run: app.EmailSender.send_email
+    description: Sends an email
+    parameters:
+      - name: sender
+        description: The sender's email address
+        required: true
+        type: string
+      - name: receivers
+        description: The receivers' email addresses
+        required: true
+        type: array
+        items:
+          type: string
+      - name: subject
+        description: The email's subject
+        required: true
+        type: string
+      - name: message
+        description: The email's message
+        required: true
+        type: string
+      - name: html
+        description: 'Is the message in HTML?'
+        type: boolean
+        default: false
+      - name: sender_name
+        description: Displayed name of the sender
+        type: string
+        default: WALKOFF
+      - name: username
+        type: string
+        description: Username for the SMTP server
+        required: true
+      - name: password
+        type: string
+        description: Password for the SMTP server
+        required: true
+      - name: ip
+        description: IP address of the SMTP server
+        type: string
+        required: true
+      - name: port
+        description: Port of the SMTP server
+        type: integer
+        minimum: 1
+        maximum: 65355
+        required: true
+    returns:
+      Success:
+        description: status message
+        schema:
+          type: string
+          enum: [success]

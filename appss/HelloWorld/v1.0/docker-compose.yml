@@ -1,0 +1,9 @@
+version: '3.4'
+services:
+  hello-world:
+    build: ..
+    env_file:
+      - env.txt
+    deploy:
+      mode: replicated
+      replicas: 6

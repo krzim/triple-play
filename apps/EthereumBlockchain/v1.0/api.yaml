@@ -1,0 +1,59 @@
+walkoff: '0.1'
+info:
+  version: 1.0.0
+  title: EthereumBlockchain
+  description: needed
+  contact:
+    name: Walkoff Team
+  license:
+    name: Creative Commons
+actions:
+  create_accounts:
+    run: app.EthereumBlockchain.create_accounts
+    description: Creates accounts for the blockchain
+    parameters:
+    - name: total_nodes
+      description: The total number of nodes in the blockchain
+      required: true
+      default: 2
+      type: integer
+    returns:
+      Success:
+        description: Success
+        schema:
+          type: integer
+  set_up_network:
+    run: app.EthereumBlockchain.set_up_network
+    description: Sets up the network
+    parameters:
+    - name: total_nodes
+      description: The total number of nodes in the blockchain
+      required: true
+      default: 2
+      type: integer
+    returns:
+      Success:
+        description: Success
+        schema:
+          type: integer
+  submit_greeting:
+    run: app.EthereumBlockchain.submit_greeting
+    description: Submits a greeting to the blockchain
+    parameters:
+        - name: greeting
+          description: The greeting to send to the blockchain
+          required: true
+          type: string
+    returns:
+      Success:
+        description: Success
+        schema:
+          type: integer
+  terminate_geth_processes:
+    run: app.EthereumBlockchain.terminate_geth_processes
+    description: Terminates the ethereum processes
+    returns:
+      Success:
+        description: Success
+        schema:
+          type: string

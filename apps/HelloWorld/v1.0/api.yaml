@@ -9,6 +9,7 @@ info:
     name: Creative Commons
 actions:
   hello_world:
+    run: app.hello_world
     description: Returns an introductory message
     returns:
       Success:
@@ -19,6 +20,7 @@ actions:
             message:
               type: string
   repeat_back_to_me:
+    run: app.repeat_back_to_me
     description: Repeats the call argument
     parameters:
         - name: call
@@ -31,6 +33,7 @@ actions:
         schema:
           type: string
   return_plus_one:
+    run: app.return_plus_one
     description: Increments a given number by 1
     parameters:
         - name: number
@@ -44,6 +47,7 @@ actions:
         schema:
           type: integer
   pause:
+    run: app.pause
     description: pauses execution for an amount of time
     parameters:
       - name: seconds
@@ -53,25 +57,50 @@ actions:
     returns:
       Success:
         description: successfully paused
-  echo_array:
-    description: echos the given array
-    parameters:
-      - name: data
-        description: The data to echo
+
+devices:
+  Test Device Type:
+    description: a test type
+    fields:
+      - name: Text field
+        type: string
+        minLength: 5
+        maxLength: 20
         required: true
-        type: array
-    returns:
-      Success:
-        schema:
-          type: array
-  echo_json:
-    description: echos the given JSON object
-    parameters:
-      - name: data
-        description: The data to echo
+        placeholder: enter something please
+      - name: Encrypted field
+        type: string
+        encrypted: true
+        placeholder: shh its a secret
+      - name: Number field
+        type: integer
+        minimum: 0
+        maximum: 25
+        exclusiveMaximum: true
+        multipleOf: 5
+        placeholder: this ones a number
         required: true
-        type: object
-    returns:
-      Success:
-        schema:
-          type: object
+      - name: Enum field
+        type: string
+        enum: [val 1, val 2, val 3, another val]
+        required: true
+        placeholder: this ones a dropdown
+      - name: Boolean field
+        type: boolean
+  Test Device Type 2:
+    description: a 2nd test type
+    fields:
+      - name: Text field
+        type: string
+        minLength: 5
+        maxLength: 100
+        pattern: ^([01]?\d\d?|2[0-4]\d|25[0-5])\.([01]?\d\d?|2[0-4]\d|25[0-5])\.([01]?\d\d?|2[0-4]\d|25[0-5])\.([01]?\d\d?|2[0-4]\d|25[0-5])$
+      - name: Enum field
+        type: string
+        enum: [val 1, val 2, val 3, another val]
+      - name: Encrypted field
+        type: string
+        encrypted: true
+      - name: Number field
+        type: number
+        default: 10

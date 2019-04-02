@@ -1,0 +1,33 @@
+walkoff: '0.1'
+info:
+  version: 1.0.0
+  title: Facebook
+  description: An app which interacts with Facebook
+  contact:
+    name: Walkoff Team
+  license:
+    name: Creative Commons
+actions:
+  post to wall:
+    run: main.Main.post_to_user_wall
+    description: Posts a message to a user's wall
+    parameters:
+      - name: message
+        description: The message to post
+        required: true
+        type: string
+      - name: userid
+        type: string
+        description: userid for this account
+        placeholder: userid
+        required: true
+      - name: token
+        type: string
+        description: Access token for this account
+        encrypted: true
+        placeholder: access token
+        required: true
+    returns:
+      Success:
+        schema:
+          type: string
