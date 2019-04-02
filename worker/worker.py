@@ -88,7 +88,7 @@ class Worker:
             for _, arg in task._coro.cr_frame.f_locals.items():  # Where the args of a coro are stored...trust me
                 if isinstance(arg, Node):
                     if arg in dependents:
-                        self.in_process.pop(arg.id_)
+                        #self.in_process.pop(arg.id_)
                         task.cancel()
                         cancelled_tasks.add(task)
 
@@ -142,11 +142,14 @@ class Worker:
             which is being referenced in the conditional and must raise an exception.
         """
         logger.debug(f"Attempting evaluation of: {condition.label}-{self.workflow.execution_id}")
-        await self.send_message(NodeStatusMessage.executing_from_node(condition, self.workflow.execution_id))
+        # UNDO LATER
+        #await self.send_message(NodeStatusMessage.executing_from_node(condition, self.workflow.execution_id))
         try:
             child_id = condition(parents, children, self.accumulator)
             selected_node = children.pop(child_id)
-            await self.send_message(NodeStatusMessage.success_from_node(condition, self.workflow.execution_id, selected_node))
+            
+            # UNDO LATER
+            # await self.send_message(NodeStatusMessage.success_from_node(condition, self.workflow.execution_id, selected_node))
             logger.info(f"Condition selected node: {selected_node.label}-{self.workflow.execution_id}")
 
             # We preemptively schedule all branches of execution so we must cancel all "false" branches here
@@ -165,10 +168,10 @@ class Worker:
     async def execute_transform(self, transform, parent):
         """ Execute an transform and ship its result """
         logger.debug(f"Attempting evaluation of: {transform.label}-{self.workflow.execution_id}")
-        await self.send_message(NodeStatusMessage.executing_from_node(transform, self.workflow.execution_id))
+        # await self.send_message(NodeStatusMessage.executing_from_node(transform, self.workflow.execution_id))
         try:
             result = transform(self.accumulator[parent.id_])  # run transform on parent's result
-            await self.send_message(NodeStatusMessage.success_from_node(transform, self.workflow.execution_id, result))
+            # await self.send_message(NodeStatusMessage.success_from_node(transform, self.workflow.execution_id, result))
             logger.info(f"Transform {transform.label}-succeeded with result: {result}")
 
             self.accumulator[transform.id_] = result
@@ -207,6 +210,7 @@ class Worker:
 
     async def schedule_node(self, node, parents, children):
         """ Waits until all dependencies of an action are met and then schedules the action """
+
         while not all(parent.id_ in self.accumulator for parent in parents.values()):
             await asyncio.sleep(0)
 

@@ -46,16 +46,16 @@ services:
 #    depends_on:
 #      - redis
 
-#  hello_world:
-#    image: localhost:5000/hello_world:latest
-#    build:
-#      context: ./apps/HelloWorld/v1.0
-#      dockerfile: Dockerfile
-#    env_file:
-#      - apps/HelloWorld/v1.0/env.txt
-#    deploy:
-#      mode: replicated
-#      replicas: 10
+  hello_world:
+   image: localhost:5000/hello_world:latest
+   build:
+     context: ./apps/HelloWorld/v1.0
+     dockerfile: Dockerfile
+   env_file:
+     - apps/HelloWorld/v1.0/env.txt
+   deploy:
+     mode: replicated
+     replicas: 10
 
 
 #  test-app:

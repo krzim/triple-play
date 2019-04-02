@@ -1,0 +1,18 @@
+{
+  "name": "pause",
+  "app_name": "HelloWorld-v1.0",
+  "parameters": [
+    {
+      "name": "seconds",
+      "value": 3,
+      "variant": "STATIC_VALUE"
+    }
+  ],
+  "id_": "55876340-50b1-d9a4-7f22-150a6f4be4c6",
+  "label": "pause",
+  "priority": 1,
+  "position": {
+    "x": 400,
+    "y": 190
+  }
+}

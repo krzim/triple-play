@@ -7,6 +7,7 @@ import json
 
 import aioredis
 import aiohttp
+from async_generator import yield_, async_generator
 
 from common.message_types import NodeStatusMessage, message_dumps
 from common.workflow_types import workflow_loads, Action
@@ -46,6 +47,11 @@ class HTTPStream:
     async def close(self):
         pass
 
+@async_generator
+async def session():
+    session = aiohttp.ClientSession()
+    await yield_(session)
+    await session.close()
 
 class AppBase:
     def __init__(self, redis=None, logger=None, console_logger=None):
@@ -53,7 +59,14 @@ class AppBase:
         self.action_queue_keys = tuple(f"{self.__class__.__name__}-{self.__version__}-{i}" for i in range(5, 0, -1))
         self.redis: aioredis.Redis = redis
         self.logger = logger if logger is not None else logging.getLogger("AppBaseLogger")
-        self.console_logger = console_logger if console_logger is not None else logging.getLogger("ConsoleBaseLogger")
+        if console_logger is not None:
+            self.console_logger = console_logger 
+        else:
+            self.console_logger = AsyncLogger(f"{self.__class__.__name__}", level=logging.DEBUG)
+            handler = AsyncHandler(stream=HTTPStream(session()))
+            handler.setFormatter(logging.Formatter(fmt="{asctime} - {name} - {levelname}:{message}", style='{'))
+            self.console_logger.addHandler(handler)
+
         self.current_execution_id = None
 
     async def get_actions(self):
