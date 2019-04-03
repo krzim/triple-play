@@ -2,7 +2,7 @@ import socket
 import asyncio
 import time
 
-from app_sdk.app_base import AppBase
+from app_sdk.walkoff_app_sdk.app_base import AppBase
 
 
 class HelloWorld(AppBase):
