@@ -2,7 +2,12 @@ import pytest
 
 from app_sdk.app_base import AppBase
 from common.workflow_types import workflow_load, Parameter, Node, Action, Point, Condition, Transform, Trigger, ParameterVariant, Workflow, workflow_dumps, workflow_loads, workflow_dump, ConditionException
+<<<<<<< HEAD
+from common.message_types import message_dumps, message_loads, NodeStatus
+from common.async_logger import AsyncLogger, AsyncHandler
+=======
 from common.message_types import message_dumps, message_loads, NodeStatusMessage
+>>>>>>> 27fcaa6c377291a7abd149627d5c95332ce539e8
 from apps.HelloWorld.v1_0.src.app import HelloWorld
 import logging
 import os
@@ -28,7 +33,11 @@ def test_init(app, redis):
 	assert app.action_queue_keys == tuple(f"{app.__class__.__name__}-{app.__version__}-{i}" for i in range(5, 0, -1))
 	assert app.redis == redis
 	assert app.logger == logging.getLogger("AppBaseLogger")
+<<<<<<< HEAD
+	#assert app.console_logger == AsyncLogger(f"{app.__class__.__name__}", level=logging.DEBUG)
+=======
 	assert app.console_logger == logging.getLogger("ConsoleBaseLogger")
+>>>>>>> 27fcaa6c377291a7abd149627d5c95332ce539e8
 	assert app.current_execution_id == None
 
 def test_init_action(action):
@@ -66,7 +75,11 @@ async def test_execute_action(app, action, redis):
 	returned = json.loads(returned)
 
 	result = 3
+<<<<<<< HEAD
+	action_result = NodeStatus.success_from_node(action, action.execution_id, result)
+=======
 	action_result = NodeStatusMessage.success_from_node(action, action.execution_id, result)
+>>>>>>> 27fcaa6c377291a7abd149627d5c95332ce539e8
 	to_compare = message_dumps(action_result)
 	to_compare = json.loads(to_compare)
 
