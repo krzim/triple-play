@@ -10,6 +10,7 @@ import os
 import json
 
 ACTIONS_IN_PROCESS = os.getenv("ACTIONS_IN_PROCESS", "actions-in-process")
+os.putenv("APP_NAME","HelloWorld")
 
 @pytest.fixture
 def app(redis, scope='function'):
@@ -18,7 +19,7 @@ def app(redis, scope='function'):
 
 @pytest.fixture
 def action(redis, scope='function'):
-	with open("testing/api_gateway/test_action.json") as fp:
+	with open("testing/api_gateway/test_app_base.json") as fp:
 		action = workflow_load(fp)
 	action.execution_id ="bd8c031a-b87e-4530-bf19-e0a08414f46f"
 	yield action
@@ -44,7 +45,7 @@ def test_init_action(action):
 
 @pytest.mark.asyncio
 async def test_get_actions(app, redis):
-	with open("testing/api_gateway/test_action.json") as fp:
+	with open("testing/api_gateway/test_app_base.json") as fp:
 		action_json = json.load(fp)
 		action_string = json.dumps(action_json)
 

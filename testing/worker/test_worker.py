@@ -15,7 +15,8 @@ from common.config import config
 from common.helpers import connect_to_redis_pool
 from common.workflow_types import workflow_load, Node, Action, Condition, Transform, Trigger, ParameterVariant, Workflow, workflow_dumps, workflow_loads, workflow_dump, ConditionException
 
-from async_generator import yield_, async_generator
+from contextlib import asynccontextmanager
+
 import birdisle.aioredis
 
 logging.basicConfig(level=logging.INFO, format="{asctime} - {name} - {levelname}:{message}", style='{')
@@ -25,40 +26,46 @@ logger = logging.getLogger("TEST WORKER")
 ##### FIXTURES ######
 #####################
 @pytest.fixture
-@async_generator
+@asynccontextmanager
 async def server():
     server = birdisle.Server()
-    await yield_(server)
-    server.close()
+    try:
+        yield server
+    finally:
+        server.close()
 
 
 @pytest.fixture
-@async_generator
+@asynccontextmanager
 async def redis(server):
     redis = await birdisle.aioredis.create_redis(server)
     with open("testing/worker/workflow.json") as fp:
         wf_json = json.load(fp)
         await redis.lpush(config["REDIS"]["workflow_q"], json.dumps(wf_json))
-    await yield_(redis)
-    redis.close()
-    await redis.wait_closed()
+    try:
+        yield redis
+    finally:
+        redis.close()
+        await redis.wait_closed()
+        logger.info("Birdisle redis connection closed.")
 
 
 @pytest.fixture
-@async_generator
+@asynccontextmanager
 async def session():
     session = aiohttp.ClientSession()
-    await yield_(session)
-    await session.close()
+    try:
+        yield session
+    finally:
+        session.close()
 
 
 @pytest.fixture
-@async_generator
-async def worker(session, redis):
+def worker(session, redis):
     with open("testing/worker/workflow.json") as fp2:
         wf = workflow_load(fp2)
     worker = Worker(redis = redis, workflow = wf, session = session)
-    await yield_(worker)
+    return worker
 
 
 #####################
