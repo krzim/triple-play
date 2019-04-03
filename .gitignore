@@ -1,4 +1,5 @@
 __pycache__/
 *.db
 *.ini
+.idea
 api_gateway/api/composed_api.yaml
