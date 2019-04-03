@@ -47,6 +47,16 @@ def api_gateway():
         api_gateway = app.test_client()
         yield api_gateway
 
+
+@pytest.fixture(scope='function')
+def token(api_gateway):
+    header = {'content-type': "application/json"}
+    response = api_gateway.post('/api/auth',
+                                data=json.dumps(dict(username='admin', password='admin')), headers=header)
+    token = json.loads(response.get_data(as_text=True))
+    yield token
+
+
 @pytest.fixture(scope='function')
 def serverdb():
     yield db
