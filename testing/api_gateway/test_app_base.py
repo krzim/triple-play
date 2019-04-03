@@ -3,10 +3,8 @@ import pytest
 from app_sdk.walkoff_app_sdk.app_base import AppBase
 from common.workflow_types import workflow_load, Parameter, Node, Action, Point, Condition, Transform, Trigger, ParameterVariant, Workflow, workflow_dumps, workflow_loads, workflow_dump, ConditionException
 from common.message_types import message_dumps, message_loads, NodeStatusMessage
-<<<<<<< HEAD
+
 from common.async_logger import AsyncLogger, AsyncHandler
-=======
->>>>>>> 0d2cd029608329f3d0818d3712e3b5ee7766734b
 from apps.HelloWorld.v1_0.src.app import HelloWorld
 import logging
 import os
@@ -22,7 +20,7 @@ def app(redis, scope='function'):
 
 @pytest.fixture
 def action(redis, scope='function'):
-	with open("testing/api_gateway/test_app_base.json") as fp:
+	with open("testing/util/test_app_base.json") as fp:
 		action = workflow_load(fp)
 	action.execution_id ="bd8c031a-b87e-4530-bf19-e0a08414f46f"
 	yield action
@@ -33,12 +31,8 @@ def test_init(app, redis):
 	assert app.action_queue_keys == tuple(f"{app.__class__.__name__}-{app.__version__}-{i}" for i in range(5, 0, -1))
 	assert app.redis == redis
 	assert app.logger == logging.getLogger("AppBaseLogger")
-<<<<<<< HEAD
 	#assert app.console_logger == AsyncLogger(f"{app.__class__.__name__}", level=logging.DEBUG)
-
-=======
 	assert app.console_logger == logging.getLogger("ConsoleBaseLogger")
->>>>>>> 0d2cd029608329f3d0818d3712e3b5ee7766734b
 	assert app.current_execution_id == None
 
 def test_init_action(action):
@@ -52,7 +46,7 @@ def test_init_action(action):
 
 @pytest.mark.asyncio
 async def test_get_actions(app, redis):
-	with open("testing/api_gateway/test_app_base.json") as fp:
+	with open("testing/util/test_app_base.json") as fp:
 		action_json = json.load(fp)
 		action_string = json.dumps(action_json)
 
@@ -76,10 +70,7 @@ async def test_execute_action(app, action, redis):
 	returned = json.loads(returned)
 
 	result = 3
-<<<<<<< HEAD
 
-=======
->>>>>>> 0d2cd029608329f3d0818d3712e3b5ee7766734b
 	action_result = NodeStatusMessage.success_from_node(action, action.execution_id, result)
 	to_compare = message_dumps(action_result)
 	to_compare = json.loads(to_compare)

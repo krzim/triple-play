@@ -39,7 +39,7 @@ async def server():
 @asynccontextmanager
 async def redis(server):
     redis = await birdisle.aioredis.create_redis(server)
-    with open("testing/worker/workflow.json") as fp:
+    with open("testing/util/workflow.json") as fp:
         wf_json = json.load(fp)
         await redis.lpush(config["REDIS"]["workflow_q"], json.dumps(wf_json))
     try:
@@ -62,7 +62,7 @@ async def session():
 
 @pytest.fixture
 def worker(session, redis):
-    with open("testing/worker/workflow.json") as fp2:
+    with open("testing/util/workflow.json") as fp2:
         wf = workflow_load(fp2)
     worker = Worker(redis = redis, workflow = wf, session = session)
     return worker
@@ -73,7 +73,7 @@ def worker(session, redis):
 #####################
 
 def test_init(worker, redis, session):
-    with open("testing/worker/workflow.json") as fp2:
+    with open("testing/util/workflow.json") as fp2:
             wf = workflow_load(fp2)
     assert worker.redis == redis
     assert worker.workflow == wf
@@ -87,7 +87,7 @@ def test_init(worker, redis, session):
 #get_workflow test - DONE
 @pytest.mark.asyncio
 async def test_get_workflow(redis, worker):
-    with open("testing/worker/workflow.json") as fp:
+    with open("testing/util/workflow.json") as fp:
         wf_json = json.load(fp)
         x = json.dumps(wf_json)
 
