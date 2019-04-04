@@ -61,9 +61,13 @@ async def session():
 
 
 @pytest.fixture
-def worker(session, redis):
-    with open("testing/util/workflow.json") as fp2:
-        wf = workflow_load(fp2)
+def wf():
+    with open("testing/util/workflow.json") as fp:
+        wf = workflow_load(fp)
+
+
+@pytest.fixture
+def worker(session, redis, wf):
     worker = Worker(redis = redis, workflow = wf, session = session)
     return worker
 
@@ -72,7 +76,7 @@ def worker(session, redis):
 #### ASYNC TESTS ####
 #####################
 
-def test_init(worker, redis, session):
+def test_init_worker(worker, redis, session):
     with open("testing/util/workflow.json") as fp2:
             wf = workflow_load(fp2)
     assert worker.redis == redis
@@ -82,6 +86,19 @@ def test_init(worker, redis, session):
     assert worker.start_action == wf.start
     assert worker.in_process == {}
     assert worker.accumulator == {}
+
+
+def test_init_wf(worker, wf):
+    assert wf.start == 
+    assert wf.id_ ==
+    assert wf.is_valid == True
+    assert wf.name == "ConditionTest"
+    assert wf.execution_id == 
+    assert wf.workflow_variables == WorkflowVariable(id = , name = , value = , description =)
+    assert wf.conditions == 
+    assert wf.errors == []
+    assert wf.description ==
+    assert wf.tags == None
 
 
 #get_workflow test - DONE
@@ -155,6 +172,7 @@ async def test_schedule_action_node(redis, worker):
     assert worker.start_action in visited
     for subnode in worker.workflow.successors(worker.start_action):
         assert subnode in visited
+
 
 #test schedule_node for transform node exclusively
 @pytest.mark.asyncio
