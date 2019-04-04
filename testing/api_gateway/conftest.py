@@ -60,11 +60,7 @@ def api_gateway():
 def serverdb():
     yield db
     db.drop_all()
-<<<<<<< HEAD
-    
-=======
 
->>>>>>> 7e1edd66a563e4f9acb19258ff28487c43fc7e83
 
 @pytest.fixture(scope='function')
 def execdb():
