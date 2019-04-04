@@ -60,8 +60,8 @@ class AppBase:
                           "docker-compose service name."))
             sys.exit(1)
 
-        # Creates redis keys of format "{AppName}_{Version}-{Priority}"
-        self.action_queue_keys = tuple(f"{APP_NAME}:{self.__version__}:{i}" for i in range(5, 0, -1))
+        # Creates redis keys of format "{APP_NAME}_{Version}-{Priority}"
+        self.action_queue_keys = tuple(f"{APP_NAME}-{self.__version__}-{i}" for i in range(5, 0, -1))
         self.redis: aioredis.Redis = redis
         self.logger = logger if logger is not None else logging.getLogger("AppBaseLogger")
         if console_logger is not None:

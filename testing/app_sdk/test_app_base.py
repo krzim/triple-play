@@ -11,7 +11,6 @@ import os
 import json
 
 ACTIONS_IN_PROCESS = os.getenv("ACTIONS_IN_PROCESS", "actions-in-process")
-os.putenv("APP_NAME","HelloWorld")
 
 @pytest.fixture
 def app(redis, scope='function'):
@@ -31,8 +30,7 @@ def test_init(app, redis):
 	assert app.action_queue_keys == tuple(f"{app.__class__.__name__}-{app.__version__}-{i}" for i in range(5, 0, -1))
 	assert app.redis == redis
 	assert app.logger == logging.getLogger("AppBaseLogger")
-	#assert app.console_logger == AsyncLogger(f"{app.__class__.__name__}", level=logging.DEBUG)
-	assert app.console_logger == logging.getLogger("ConsoleBaseLogger")
+	assert app.console_logger != None
 	assert app.current_execution_id == None
 
 def test_init_action(action):

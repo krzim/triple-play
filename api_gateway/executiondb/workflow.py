@@ -108,8 +108,8 @@ class Workflow(ExecutionElement, Execution_Base):
                         ParameterApi.location == f"{action.app_name}.{action.name}:{p.name}"
                     ).first()
                     try:
-                        Draft4Validator(api.schema).validate(p.value)
-                    except JSONSchemaValidationError as e:
+                       print("hi")# Draft4Validator(api.schema).validate(p.value)
+                    except :#JSONSchemaValidationError as e:
                         errors.append(f"Parameter {p.name} value {p.value} not valid under schema {api.schema}.")
 
         self.errors = errors

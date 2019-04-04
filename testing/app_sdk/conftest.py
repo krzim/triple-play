@@ -1,3 +1,5 @@
+# TODO: CLEAN UP 
+
 import pytest
 from api_gateway.extensions import db
 from api_gateway.server.app import app
@@ -65,4 +67,4 @@ def serverdb():
 @pytest.fixture(scope='function')
 def execdb():
     yield app.running_context.execution_db
-    app.running_context.execution_db.tear_down()
+    app.running_context.execution_db.drop_all()

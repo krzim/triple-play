@@ -1,14 +1,12 @@
 import pytest
 
-import api_gateway.appgateway
 import api_gateway.config
-from testing.util.assertwrappers import orderless_list_compare
-from api_gateway.appgateway.apiutil import UnknownApp
-from api_gateway.appgateway.validator import *
+
 from api_gateway.server.endpoints.appapi import *
 from api_gateway.server.app import app
 
 import json
+
 
 
 def test_read_all_apps(api_gateway, token):
@@ -16,8 +14,8 @@ def test_read_all_apps(api_gateway, token):
   header = {'Authorization': 'Bearer {}'.format(token['access_token'])}
 
   SUCCESS = 200
-  expected_apps = ['HelloWorldBounded', 'DailyQuote', 'HelloWorld']
-  response = api_gateway.post('/api/apps', data="HelloWorldBounded", headers=header)
+  expected_apps = ['HelloWorld']
+  response = api_gateway.post('/api/apps', data="HelloWorld", headers=header)
   response = api_gateway.get('/api/apps' ,headers=header)
 
   assert response.status_code == SUCCESS
