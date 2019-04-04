@@ -9,8 +9,7 @@ import aiohttp
 from async_generator import yield_, async_generator
 import birdisle.aioredis
 from common.config import config
-
-
+from common.workflow_types import workflow_load
 @pytest.fixture
 @async_generator
 async def server(scope='function'):
@@ -18,6 +17,10 @@ async def server(scope='function'):
     await yield_(server)
     server.close()
 
+@pytest.fixture
+def workflow():
+    with open("testing/util/workflow.json") as fp:
+        workflow = workflow_load(fp)
 
 @pytest.fixture
 @async_generator
@@ -47,15 +50,6 @@ def api_gateway():
         app.testing = True
         api_gateway = app.test_client()
         yield api_gateway
-
-
-@pytest.fixture(scope='function')
-def token(api_gateway):
-    header = {'content-type': "application/json"}
-    response = api_gateway.post('/api/auth',
-                                data=json.dumps(dict(username='admin', password='admin')), headers=header)
-    token = json.loads(response.get_data(as_text=True))
-    yield token
 
 
 @pytest.fixture(scope='function')
