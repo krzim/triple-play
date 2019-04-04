@@ -1,6 +1,6 @@
 import pytest
 
-import api_gateway.server.endpoints.workflows
+import api_gateway.server.endpoints.workflowqueue
 
 # def test_abort_workflow(api_gateway, workflow, execdb):
 
