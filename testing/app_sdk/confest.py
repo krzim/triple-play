@@ -1,13 +1,23 @@
-# TODO: CLEAN UP 
-
 import pytest
 from api_gateway.extensions import db
 from api_gateway.server.app import app
 from api_gateway.server.blueprints.root import create_user
+from api_gateway.executiondb import ExecutionDatabase
+from api_gateway.executiondb.action import Action
+from api_gateway.executiondb.appapi import AppApi
+from api_gateway.executiondb.branch import Branch
+from api_gateway.executiondb.condition import Condition
+from api_gateway.executiondb.dashboard import Dashboard
+from api_gateway.executiondb.global_variable import GlobalVariable
+from api_gateway.executiondb.parameter import Parameter
+from api_gateway.executiondb.position import Position
+from api_gateway.executiondb.returns import ReturnApi
+from api_gateway.executiondb.transform import Transform
+from api_gateway.executiondb.trigger import Trigger
+from api_gateway.executiondb.workflow import Workflow
+from api_gateway.executiondb.workflow_variable import WorkflowVariable
+from api_gateway.executiondb.workflowresults import WorkflowStatus
 import json
-import aioredis
-import asyncio
-import aiohttp
 from async_generator import yield_, async_generator
 import birdisle.aioredis
 from common.config import config
@@ -62,9 +72,3 @@ def api_gateway():
 def serverdb():
     yield db
     db.drop_all()
-
-
-@pytest.fixture(scope='function')
-def execdb():
-    yield app.running_context.execution_db
-    app.running_context.execution_db.drop_all()
