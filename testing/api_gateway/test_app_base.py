@@ -20,7 +20,7 @@ def app(redis, scope='function'):
 
 @pytest.fixture
 def action(redis, scope='function'):
-	with open("testing/util/test_app_base.json") as fp:
+	with open("testing/util/action.json") as fp:
 		action = workflow_load(fp)
 	action.execution_id ="bd8c031a-b87e-4530-bf19-e0a08414f46f"
 	yield action
@@ -42,11 +42,11 @@ def test_init_action(action):
 	assert action.priority == 1
 	assert action.execution_id == "bd8c031a-b87e-4530-bf19-e0a08414f46f"
 	#assert Parameter(name= "seconds", value= 3, variant= "STATIC_VALUE") in action.parameters
-	assert action.position == Point(x=400, y=190)
+	assert action.position == Point(id_="16e38316-7a95-4f9e-af09-5492b221a5fd", x=400, y=190)
 
 @pytest.mark.asyncio
 async def test_get_actions(app, redis):
-	with open("testing/util/test_app_base.json") as fp:
+	with open("testing/util/action.json") as fp:
 		action_json = json.load(fp)
 		action_string = json.dumps(action_json)
 

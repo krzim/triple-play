@@ -8,6 +8,7 @@ from async_generator import yield_, async_generator
 import birdisle.aioredis
 from common.config import config
 from common.workflow_types import workflow_load
+
 @pytest.fixture
 @async_generator
 async def server(scope='function'):
@@ -15,16 +16,19 @@ async def server(scope='function'):
     await yield_(server)
     server.close()
 
+
 @pytest.fixture
 def workflow():
     with open("testing/util/workflow.json") as fp:
         workflow = workflow_load(fp)
+    yield workflow
+
 
 @pytest.fixture
 @async_generator
 async def redis(server, scope='function'):
     redis = await birdisle.aioredis.create_redis(server)
-    with open("testing/worker/workflow.json") as fp:
+    with open("testing/util/workflow.json") as fp:
         wf_json = json.load(fp)
         await redis.lpush(config["REDIS"]["workflow_q"], json.dumps(wf_json))
     await yield_(redis)
@@ -39,6 +43,7 @@ def token(api_gateway):
                                 data=json.dumps(dict(username='admin', password='admin')), headers=header)
     token = json.loads(response.get_data(as_text=True))
     yield token
+
 
 @pytest.fixture(scope='function')
 def api_gateway():
@@ -56,6 +61,7 @@ def serverdb():
     yield db
     db.drop_all()
     
+
 @pytest.fixture(scope='function')
 def execdb():
     from api_gateway.server.app import app

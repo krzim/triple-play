@@ -14,9 +14,9 @@ from worker.worker import Worker
 from common.config import config
 from common.helpers import connect_to_redis_pool
 from common.workflow_types import workflow_load, Node, Action, Condition, Transform, Trigger, ParameterVariant, Workflow, workflow_dumps, workflow_loads, workflow_dump, ConditionException
+from common.workflow_types import WorkflowVariable
 
-from contextlib import asynccontextmanager
-
+from async_generator import yield_, async_generator
 import birdisle.aioredis
 
 logging.basicConfig(level=logging.INFO, format="{asctime} - {name} - {levelname}:{message}", style='{')
@@ -26,44 +26,40 @@ logger = logging.getLogger("TEST WORKER")
 ##### FIXTURES ######
 #####################
 @pytest.fixture
-@asynccontextmanager
+@async_generator
 async def server():
     server = birdisle.Server()
-    try:
-        yield server
-    finally:
-        server.close()
-
+    await yield_(server)
+    server.close()
+    logger.info("Birdisle server connection closed.")
 
 @pytest.fixture
-@asynccontextmanager
+@async_generator
 async def redis(server):
     redis = await birdisle.aioredis.create_redis(server)
     with open("testing/util/workflow.json") as fp:
         wf_json = json.load(fp)
         await redis.lpush(config["REDIS"]["workflow_q"], json.dumps(wf_json))
-    try:
-        yield redis
-    finally:
-        redis.close()
-        await redis.wait_closed()
-        logger.info("Birdisle redis connection closed.")
+    await yield_(redis)
+    redis.close()
+    await redis.wait_closed()
+    logger.info("Birdisle redis connection closed.")
 
 
 @pytest.fixture
-@asynccontextmanager
+@async_generator
 async def session():
     session = aiohttp.ClientSession()
-    try:
-        yield session
-    finally:
-        session.close()
+    await yield_(session)
+    await session.close()
+    logger.info("Client Session closed.")
 
 
 @pytest.fixture
 def wf():
     with open("testing/util/workflow.json") as fp:
         wf = workflow_load(fp)
+    yield wf
 
 
 @pytest.fixture
@@ -89,16 +85,16 @@ def test_init_worker(worker, redis, session):
 
 
 def test_init_wf(worker, wf):
-    assert wf.start == 
-    assert wf.id_ ==
+    assert wf.start.id_ == "239d47a9-323e-a920-d1ae-d9bfa75cbeb0"
+    assert wf.id_ == "e8c7840a-bd3e-4cfd-b9be-e07269b10c89"
     assert wf.is_valid == True
     assert wf.name == "ConditionTest"
-    assert wf.execution_id == 
-    assert wf.workflow_variables == WorkflowVariable(id = , name = , value = , description =)
-    assert wf.conditions == 
+    assert wf.execution_id == "bd8c031a-b87e-4530-bf19-e0a08414f46f"
+    #assert wf.workflow_variables == WorkflowVariable(id_ = "a5677375-a763-9445-2193-b6c54453dbde", name = "repeat_back", value = "Repeating back default!", description = "Arg for the final repeat back to me")
+    assert wf.conditions[0].id_ == "023fa9b6-9ee9-49b9-8adc-931a35ebf2cc" 
     assert wf.errors == []
-    assert wf.description ==
-    assert wf.tags == None
+    assert wf.description == None
+    assert wf.tags == []
 
 
 #get_workflow test - DONE
