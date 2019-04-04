@@ -13,13 +13,9 @@ from api_gateway.serverdb import add_user
 logger = logging.getLogger(__name__)
 
 
-def test_create_global(api_gateway, serverdb):
-    header = {'content-type': "application/json"}
-    response = api_gateway.post('/api/auth',
-                                data=json.dumps(dict(username='admin', password='admin')), headers=header)
-    key = json.loads(response.get_data(as_text=True))
+def test_create_global(api_gateway, token, serverdb):
 
-    headers = {'Authorization': 'Bearer {}'.format(key['access_token']), 'content-type': 'application/json'}
+    headers = {'Authorization': 'Bearer {}'.format(token['access_token']), 'content-type': 'application/json'}
     add_global = api_gateway.post('/api/globals',
                                   data=json.dumps({'description': 'foo', 'name': 'admin', 'value': 'bar'}),
                                   headers=headers)
@@ -30,4 +26,6 @@ def test_create_global(api_gateway, serverdb):
     assert key1['description'] == key2[1]['description']
     assert key1['name'] == key2[1]['name']
     assert key1['value'] == key2[1]['value']
+
+
 

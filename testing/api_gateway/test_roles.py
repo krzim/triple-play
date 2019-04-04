@@ -230,4 +230,39 @@ def test_update_role_with_resources_updates_resource_roles(api_gateway, token, s
     for resource in ['resource4', 'resource5']:
         rsrc = Resource.query.filter_by(name=resource).first()
         assert rsrc is not None
-        self.assertIsNotNone(rsrc)
+
+
+def test_delete_role(api_gateway, token, serverdb):
+    data_init = {"name": 'role1', "description": 'desc',
+                 "resources": [{'name': 'resource1', 'permissions': ['create']},
+                               {'name': 'resource2', 'permissions': ['create']},
+                               {'name': 'resource3', 'permissions': ['create']}]}
+    header = {'Authorization': 'Bearer {}'.format(token['access_token'])}
+    response = api_gateway.post('/api/roles', headers=header, content_type='application/json',
+                                data=json.dumps(data_init))
+    key = json.loads(response.get_data(as_text=True))
+    role_id = key['id']
+    response = api_gateway.delete(f'/api/roles/{role_id}', headers=header)
+    assert response.status_code == 204
+
+
+def test_delete_role_does_not_exist(api_gateway, token, serverdb):
+    header = {'Authorization': 'Bearer {}'. format(token['access_token'])}
+    response = api_gateway.delete('/api/roles/404', headers=header)
+    assert response.status_code == 404
+
+
+def test_delete_role_updates_resource_roles(api_gateway, token, serverdb):
+    resources = [{'name': 'resource1', 'permissions': ['create']},
+                 {'name': 'resource2', 'permissions': ['create']},
+                 {'name': 'resource3', 'permissions': ['create']}]
+    data_init = {"name": 'role1', "description": 'desc', "resources": resources}
+    header = {'Authorization': 'Bearer {}'. format(token['access_token'])}
+    response = api_gateway.post('/api/roles', headers=header, content_type='application/json',
+                                                data=json.dumps(data_init))
+    key = json.loads(response.get_data(as_text=True))
+    role_id = key['id']
+    response = api_gateway.delete(f'/api/roles/{role_id}', headers=header)
+    assert response.status_code == 204
+    role = Role.query.filter_by(id=role_id).first()
+    assert role is None
