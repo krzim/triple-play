@@ -144,58 +144,6 @@
       }
     }
   ],
-  "branches": [
-    {
-      "destination_id": "55876340-50b1-d9a4-7f22-150a6f4be4c6",
-      "source_id": "239d47a9-323e-a920-d1ae-d9bfa75cbeb0",
-      "id_": "d441b9c0-783e-4c4b-b3a0-90f0ef507336"
-    },
-    {
-      "destination_id": "adb4da32-5cd9-4470-a027-00e7d7a2d73b",
-      "source_id": "239d47a9-323e-a920-d1ae-d9bfa75cbeb0",
-      "id_": "35090325-ed62-45b8-b774-f278a4f02e38"
-    },
-    {
-      "destination_id": "4f67c98f-5cd0-7cba-7724-b8441ce0928e",
-      "source_id": "023fa9b6-9ee9-49b9-8adc-931a35ebf2cc",
-      "id_": "abe28fe0-b2c6-451c-ba29-af687c75e618"
-    },
-    {
-      "destination_id": "5b560c49-3ede-67a0-95b6-62146de93d4f",
-      "source_id": "023fa9b6-9ee9-49b9-8adc-931a35ebf2cc",
-      "id_": "f78c9089-2afa-47a3-a38d-ac9d887044f3"
-    },
-    {
-      "destination_id": "023fa9b6-9ee9-49b9-8adc-931a35ebf2cc",
-      "source_id": "55876340-50b1-d9a4-7f22-150a6f4be4c6",
-      "id_": "f78c9089-2afa-47a3-a38d-ac9d887044f3"
-    },
-    {
-      "destination_id": "023fa9b6-9ee9-49b9-8adc-931a35ebf2cc",
-      "source_id": "adb4da32-5cd9-4470-a027-00e7d7a2d73b",
-      "id_": "819a6e9c-e506-450c-895c-2f235fa6a0d6"
-    },
-    {
-      "destination_id": "4ae0a2d8-30a6-4638-9fbc-eb0b1d2171a1",
-      "source_id": "5b560c49-3ede-67a0-95b6-62146de93d4f",
-      "id_": "50ed848f-828c-457e-8fb9-60bf6be6b0dd"
-    },
-        {
-      "destination_id": "3e9e6d9f-736e-437a-a5b0-138783c67fbb",
-      "source_id": "4ae0a2d8-30a6-4638-9fbc-eb0b1d2171a1",
-      "id_": "83a86972-5a7b-40d4-98ff-482fd8f36a6b"
-    },
-    {
-      "destination_id": "5cd36869-2719-4996-88b5-9060ac61bc36",
-      "source_id": "3e9e6d9f-736e-437a-a5b0-138783c67fbb",
-      "id_": "4d0d4c17-b713-4fef-834a-64f6e68d91f8"
-    },
-    {
-      "destination_id": "53a68b00-979f-46c3-ab9c-cc08108ce97c",
-      "source_id": "5cd36869-2719-4996-88b5-9060ac61bc36",
-      "id_": "d56283eb-53c7-48c6-9a4a-c2651d194c51"
-    }
-  ],
   "conditions": [
   {
       "name": "Condition",
