@@ -75,6 +75,17 @@ def serverdb():
 
 
 @pytest.fixture(scope='function')
+def workflow(api_gateway, token):
+    header = {'Authorization': 'Bearer {}'.format(token['access_token'])}
+    with open("testing/util/workflow.json") as fp:
+        wf_json = json.load(fp)
+        data = json.dumps(wf_json)
+    response1 = api_gateway.post('/api/workflows', data=data, headers=header, content_type="application/json")
+    wf = json.loads(response1.get_data(as_text=True))
+    yield wf
+
+
+@pytest.fixture(scope='function')
 def execdb():
     yield app.running_context.execution_db
     execution_db = ExecutionDatabase.instance
