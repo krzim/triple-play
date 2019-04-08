@@ -1,7 +1,7 @@
 import uuid
 import json
 from http import HTTPStatus
-
+import logging
 import gevent
 from gevent.queue import Queue
 
@@ -13,12 +13,15 @@ import jsonpatch
 
 from api_gateway.server.decorators import with_resource_factory, paginate, is_valid_uid
 from api_gateway.executiondb.workflow import Workflow
-from api_gateway.executiondb.workflowresults import (WorkflowStatus, ActionStatus, WorkflowStatusSchema,
-                                                     ActionStatusSchema)
+from api_gateway.executiondb.workflowresults import (WorkflowStatus, NodeStatus, WorkflowStatusSchema,
+                                                     NodeStatusSchema)
 
 from api_gateway.security import permissions_accepted_for_resources, ResourcePermissions
 from api_gateway.server.problem import unique_constraint_problem, invalid_id_problem
 from api_gateway.sse import SseEvent
+
+
+logger = logging.getLogger(__name__)
 
 
 def workflow_getter(workflow_id):
@@ -30,15 +33,15 @@ def workflow_status_getter(execution_id):
         execution_id=execution_id).first()
 
 
-def action_status_getter(combined_id):
-    return current_app.running_context.execution_db.session.query(ActionStatus).filter_by(
+def node_status_getter(combined_id):
+    return current_app.running_context.execution_db.session.query(NodeStatus).filter_by(
         combined_id=combined_id).first()
 
 
 with_workflow = with_resource_factory('workflow', workflow_getter, validator=is_valid_uid)
 with_workflow_status = with_resource_factory('workflow', workflow_status_getter, validator=is_valid_uid)
 
-action_status_schema = ActionStatusSchema()
+node_status_schema = NodeStatusSchema()
 workflow_status_schema = WorkflowStatusSchema()
 
 results_stream = Blueprint('results_stream', __name__)
@@ -47,23 +50,30 @@ action_stream_subs = {}
 
 
 def push_to_workflow_stream_queue(workflow_status, event):
-    workflow_status.pop("action_statuses", None)
+    workflow_status.pop("node_statuses", None)
+    workflow_status["execution_id"] = str(workflow_status["execution_id"])
     sse_event_text = SseEvent(event, workflow_status).format(workflow_status["execution_id"])
-
     if workflow_status["execution_id"] in workflow_stream_subs:
         workflow_stream_subs[workflow_status["execution_id"]].put(sse_event_text)
     if 'all' in workflow_stream_subs:
         workflow_stream_subs['all'].put(sse_event_text)
 
 
-def push_to_action_stream_queue(action_statuses, event):
+def push_to_action_stream_queue(node_statuses, event):
+
     event_id = 0
-    for action_status in action_statuses:
-        action_status_json = action_status_schema.dump(action_status)
-        sse_event = SseEvent(event, action_status_json)
-        execution_id = str(action_status_json["execution_id"])
+    for node_status in node_statuses:
+        node_status_json = node_status_schema.dump(node_status)
+        node_status_json["execution_id"] = str(node_status_json["execution_id"])
+        sse_event = SseEvent(event, node_status_json)
+        execution_id = str(node_status_json["execution_id"])
+
+        sse_event_text = sse_event.format(event_id)
+
         if execution_id in action_stream_subs:
-            action_stream_subs[execution_id].put(sse_event.format(event_id))
+            action_stream_subs[execution_id].put(sse_event_text)
+        if 'all' in action_stream_subs:
+            action_stream_subs['all'].put(sse_event_text)
         event_id += 1
 
 
@@ -73,7 +83,7 @@ def push_to_action_stream_queue(action_statuses, event):
 #     workflow_status_json = request.get_json()
 #     workflow_id = workflow_status_json.get("workflow_id")
 #     workflow = workflow_getter(workflow_id)
-#     print(workflow_id)
+#     current_app.logger.info(workflow_id)
 #     # if not workflow.is_valid:
 #     #     return invalid_input_problem("workflow", "execute", workflow.id_, errors=workflow.errors)
 #
@@ -106,35 +116,35 @@ def update_workflow_status(execution_id):
     data = request.get_json()
 
     # TODO: change these on the db model to be keyed by ID
-    if "action_statuses" in old_workflow_status:
-        old_workflow_status["action_statuses"] = {astat['action_id']: astat for astat in
-                                                  old_workflow_status["action_statuses"]}
+    if "node_statuses" in old_workflow_status:
+        old_workflow_status["node_statuses"] = {astat['node_id']: astat for astat in
+                                                  old_workflow_status["node_statuses"]}
     else:
-        old_workflow_status["action_statuses"] = {}
+        old_workflow_status["node_statuses"] = {}
 
     patch = jsonpatch.JsonPatch.from_string(json.dumps(data))
     new_workflow_status = patch.apply(old_workflow_status)
 
-    new_workflow_status["action_statuses"] = list(new_workflow_status["action_statuses"].values())
+    new_workflow_status["node_statuses"] = list(new_workflow_status["node_statuses"].values())
 
-    resource = request.args.get("resource")
     event = request.args.get("event")
 
     try:
         execution_id = workflow_status_schema.load(new_workflow_status, instance=execution_id)
-
         current_app.running_context.execution_db.session.commit()
 
-        action_statuses = []
+        node_statuses = []
         for patch in data:
-            if "action_statuses" in patch["path"]:
-                action_statuses.append(action_status_getter(patch["value"]["combined_id"]))
+            if "node_statuses" in patch["path"]:
+                node_statuses.append(node_status_getter(patch["value"]["combined_id"]))
 
         # TODo: Replace this when moving to sanic
-        if len(action_statuses) < 1:
-            gevent.spawn(push_to_workflow_stream_queue, new_workflow_status, event)
-        else:
-            gevent.spawn(push_to_action_stream_queue, action_statuses, event)
+        current_app.logger.info(f"Workflow Status update: {new_workflow_status}")
+        gevent.spawn(push_to_workflow_stream_queue, new_workflow_status, event)
+
+        if node_statuses:
+            current_app.logger.info(f"Action Status update:{node_statuses}")
+            gevent.spawn(push_to_action_stream_queue, node_statuses, event)
 
         current_app.logger.info(f"Updated workflow status {execution_id.execution_id} ({execution_id.name})")
         return workflow_status_schema.dump(execution_id), HTTPStatus.OK
@@ -146,6 +156,7 @@ def update_workflow_status(execution_id):
 @results_stream.route('/workflow_status')
 def workflow_stream():
     execution_id = request.args.get('workflow_execution_id', 'all')
+    logger.info(f"workflow_status subscription for {execution_id}")
     if execution_id != 'all':
         try:
             uuid.UUID(execution_id)
@@ -156,9 +167,12 @@ def workflow_stream():
         workflow_stream_subs[execution_id] = events = workflow_stream_subs.get(execution_id, Queue())
         try:
             while True:
-                yield events.get().encode()
+                event = events.get().encode()
+                logger.info(f"Sending workflow_status SSE for {execution_id}: {event}")
+                yield event
         except GeneratorExit:
             workflow_stream_subs.pop(events)
+            logger.info(f"workflow_status unsubscription for {execution_id}")
 
     return Response(workflow_results_generator(), mimetype="test/event-stream")
 
@@ -166,6 +180,7 @@ def workflow_stream():
 @results_stream.route('/actions')
 def action_stream():
     execution_id = request.args.get('workflow_execution_id', 'all')
+    logger.info(f"action subscription for {execution_id}")
     if execution_id != 'all':
         try:
             uuid.UUID(execution_id)
@@ -177,9 +192,10 @@ def action_stream():
         try:
             while True:
                 event = events.get().encode()
-                print(event)
+                logger.info(f"Sending action SSE for {execution_id}: {event}")
                 yield event
         except GeneratorExit:
             action_stream_subs.pop(execution_id)
+            logger.info(f"action unsubscription for {execution_id}")
 
     return Response(action_results_generator(), mimetype="text/event-stream")

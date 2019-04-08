@@ -13,17 +13,19 @@ import { ExecutionService } from './execution.service';
 import { AuthService } from '../auth/auth.service';
 import { UtilitiesService } from '../utilities.service';
 
-import { WorkflowStatus } from '../models/execution/workflowStatus';
+import { WorkflowStatus, WorkflowStatuses } from '../models/execution/workflowStatus';
 import { WorkflowStatusEvent } from '../models/execution/workflowStatusEvent';
 import { Workflow } from '../models/playbook/workflow';
-import { ActionStatusEvent } from '../models/execution/actionStatusEvent';
+import { NodeStatusEvent } from '../models/execution/nodeStatusEvent';
 import { Argument } from '../models/playbook/argument';
 import { GenericObject } from '../models/genericObject';
-import { CurrentAction } from '../models/execution/currentAction';
-import { ActionStatus } from '../models/execution/actionStatus';
+import { NodeStatus, NodeStatuses } from '../models/execution/nodeStatus';
 
 import { ExecutionVariableModalComponent } from './execution.variable.modal.component';
 import { EnvironmentVariable } from '../models/playbook/environmentVariable';
+import { NodeStatusSummary } from '../models/execution/nodeStatusSummary';
+import { ConsoleLog } from '../models/execution/consoleLog';
+import { Router } from '@angular/router';
 
 @Component({
 	selector: 'execution-component',
@@ -35,8 +37,8 @@ import { EnvironmentVariable } from '../models/playbook/environmentVariable';
 	providers: [AuthService],
 })
 export class ExecutionComponent implements OnInit, AfterViewChecked, OnDestroy {
-	@ViewChild('actionStatusContainer') actionStatusContainer: ElementRef;
-	@ViewChild('actionStatusTable') actionStatusTable: DatatableComponent;
+	@ViewChild('nodeStatusContainer') nodeStatusContainer: ElementRef;
+	@ViewChild('nodeStatusTable') nodeStatusTable: DatatableComponent;
 
 	schedulerStatus: string;
 	workflowStatuses: WorkflowStatus[] = [];
@@ -46,23 +48,23 @@ export class ExecutionComponent implements OnInit, AfterViewChecked, OnDestroy {
 	workflowSelectConfig: Select2Options;
 	selectedWorkflow: Workflow;
 	loadedWorkflowStatus: WorkflowStatus;
-	actionStatusComponentWidth: number;
+	nodeStatusComponentWidth: number;
 	workflowStatusActions: GenericObject;
 	workflowStatusStartedRelativeTimes: { [key: string]: string } = {};
 	workflowStatusCompletedRelativeTimes: { [key: string]: string } = {};
-	actionStatusStartedRelativeTimes: { [key: string]: string } = {};
-	actionStatusCompletedRelativeTimes: { [key: string]: string } = {};
+	nodeStatusStartedRelativeTimes: { [key: string]: string } = {};
+	nodeStatusCompletedRelativeTimes: { [key: string]: string } = {};
 
 	filterQuery: FormControl = new FormControl();
 
 	workflowStatusEventSource: any;
-	actionStatusEventSource: any;
+	nodeStatusEventSource: any;
 	recalculateTableCallback: any;
 
 	constructor(
 		private executionService: ExecutionService, private authService: AuthService, private cdr: ChangeDetectorRef,
 		private toastrService: ToastrService, private utils: UtilitiesService,
-		private modalService: NgbModal,
+		private modalService: NgbModal, private router: Router
 	) {}
 
 	/**
@@ -85,7 +87,7 @@ export class ExecutionComponent implements OnInit, AfterViewChecked, OnDestroy {
 		this.getWorkflows();
 		this.getWorkflowStatuses();
 		this.getWorkflowStatusSSE();
-		this.getActionStatusSSE();
+		this.getNodeStatusSSE();
 
 		this.filterQuery
 			.valueChanges
@@ -97,14 +99,14 @@ export class ExecutionComponent implements OnInit, AfterViewChecked, OnDestroy {
 		});
 
 		this.recalculateTableCallback = (e: any) => {
-			if (this.actionStatusTable && this.actionStatusTable.recalculate) {
-				if (Array.isArray(this.actionStatusTable.rows)) 
-					this.actionStatusTable.rows = [...this.actionStatusTable.rows];
-				this.actionStatusTable.recalculate();
+			if (this.nodeStatusTable && this.nodeStatusTable.recalculate) {
+				if (Array.isArray(this.nodeStatusTable.rows))
+					this.nodeStatusTable.rows = [...this.nodeStatusTable.rows];
+				this.nodeStatusTable.recalculate();
 			}
 		}
 
-		$(document).on('shown.bs.modal', '.actionStatusModal', this.recalculateTableCallback)
+		$(document).on('shown.bs.modal', '.nodeStatusModal', this.recalculateTableCallback)
 	}
 
 	/**
@@ -112,10 +114,10 @@ export class ExecutionComponent implements OnInit, AfterViewChecked, OnDestroy {
 	 */
 	ngAfterViewChecked(): void {
 		// Check if the table size has changed, and recalculate.
-		if (this.actionStatusTable && this.actionStatusTable.recalculate && 
-			(this.actionStatusContainer.nativeElement.clientWidth !== this.actionStatusComponentWidth)) {
-			this.actionStatusComponentWidth = this.actionStatusContainer.nativeElement.clientWidth;
-			this.actionStatusTable.recalculate();
+		if (this.nodeStatusTable && this.nodeStatusTable.recalculate &&
+			(this.nodeStatusContainer.nativeElement.clientWidth !== this.nodeStatusComponentWidth)) {
+			this.nodeStatusComponentWidth = this.nodeStatusContainer.nativeElement.clientWidth;
+			this.nodeStatusTable.recalculate();
 			this.cdr.detectChanges();
 		}
 	}
@@ -127,11 +129,11 @@ export class ExecutionComponent implements OnInit, AfterViewChecked, OnDestroy {
 		if (this.workflowStatusEventSource && this.workflowStatusEventSource.close) {
 			this.workflowStatusEventSource.close();
 		}
-		if (this.actionStatusEventSource && this.actionStatusEventSource.close) {
-			this.actionStatusEventSource.close();
+		if (this.nodeStatusEventSource && this.nodeStatusEventSource.close) {
+			this.nodeStatusEventSource.close();
 		}
 		if (this.recalculateTableCallback) {
-			$(document).off('shown.bs.modal', '.actionStatusModal', this.recalculateTableCallback)
+			$(document).off('shown.bs.modal', '.nodeStatusModal', this.recalculateTableCallback)
 		}
 	}
 
@@ -145,10 +147,10 @@ export class ExecutionComponent implements OnInit, AfterViewChecked, OnDestroy {
 		this.displayWorkflowStatuses = this.workflowStatuses.filter((s) => {
 			return s.name.toLocaleLowerCase().includes(searchFilter) ||
 				s.status.toLocaleLowerCase().includes(searchFilter) ||
-				(s.current_action &&
-					(s.current_action.name.toLocaleLowerCase().includes(searchFilter) ||
-					s.current_action.action_name.toLocaleLowerCase().includes(searchFilter) ||
-					s.current_action.app_name.toLocaleLowerCase().includes(searchFilter)));
+				(s.node_status &&
+					(s.node_status.name.toLocaleLowerCase().includes(searchFilter) ||
+					s.node_status.label.toLocaleLowerCase().includes(searchFilter) ||
+					s.node_status.app_name.toLocaleLowerCase().includes(searchFilter)));
 		});
 	}
 
@@ -175,23 +177,20 @@ export class ExecutionComponent implements OnInit, AfterViewChecked, OnDestroy {
 		this.authService.getEventSource('/api/streams/workflowqueue/workflow_status')
 			.then(eventSource => {
 				this.workflowStatusEventSource = eventSource;
-				this.workflowStatusEventSource.addEventListener('queued', (e: any) => this.workflowStatusEventHandler(e));
-				this.workflowStatusEventSource.addEventListener('started', (e: any) => this.workflowStatusEventHandler(e));
-				this.workflowStatusEventSource.addEventListener('paused', (e: any) => this.workflowStatusEventHandler(e));
-				this.workflowStatusEventSource.addEventListener('resumed', (e: any) => this.workflowStatusEventHandler(e));
-				this.workflowStatusEventSource.addEventListener('awaiting_data', (e: any) => this.workflowStatusEventHandler(e));
-				this.workflowStatusEventSource.addEventListener('triggered', (e: any) => this.workflowStatusEventHandler(e));
-				this.workflowStatusEventSource.addEventListener('aborted', (e: any) => this.workflowStatusEventHandler(e));
-				this.workflowStatusEventSource.addEventListener('completed', (e: any) => this.workflowStatusEventHandler(e));
+				this.workflowStatusEventSource.onerror = (e: any) => this.statusEventErrorHandler(e);
+
+				Object.values(WorkflowStatuses)
+					  .forEach(status => this.workflowStatusEventSource.addEventListener(status, (e: any) => this.workflowStatusEventHandler(e)));
 			});
 	}
 
 	/**
-	 * Handles an EventSource message for Workflow Status. 
+	 * Handles an EventSource message for Workflow Status.
 	 * Updates existing workflow statuses for status updates or adds new ones to the list for display.
 	 * @param message EventSource message for workflow status
 	 */
 	workflowStatusEventHandler(message: any): void {
+		console.log('w', message, JSON.parse(message.data));
 		const workflowStatusEvent = plainToClass(WorkflowStatusEvent, (JSON.parse(message.data) as object));
 
 		const matchingWorkflowStatus = this.workflowStatuses.find(ws => ws.execution_id === workflowStatusEvent.execution_id);
@@ -200,34 +199,34 @@ export class ExecutionComponent implements OnInit, AfterViewChecked, OnDestroy {
 			matchingWorkflowStatus.status = workflowStatusEvent.status;
 
 			switch (message.type) {
-				case 'queued':
-					delete matchingWorkflowStatus.current_action;
+				case WorkflowStatuses.PENDING:
+					delete matchingWorkflowStatus.node_status;
 					break;
-				case 'started':
+				case WorkflowStatuses.EXECUTING:
 					if (!matchingWorkflowStatus.started_at) {
 						matchingWorkflowStatus.started_at = workflowStatusEvent.timestamp;
 						this.workflowStatusStartedRelativeTimes[matchingWorkflowStatus.execution_id] =
 							this.utils.getRelativeLocalTime(workflowStatusEvent.timestamp);
 					}
 					matchingWorkflowStatus.user = workflowStatusEvent.user;
-					matchingWorkflowStatus.current_action = workflowStatusEvent.current_action;
+					matchingWorkflowStatus.node_status = workflowStatusEvent.node_status;
 					break;
-				case 'paused':
-				case 'resumed':
-				case 'awaiting_data':
-				case 'triggered':
-					matchingWorkflowStatus.current_action = workflowStatusEvent.current_action;
+				case WorkflowStatuses.PAUSED:
+				case WorkflowStatuses.AWAITING_DATA:
+				//case 'resumed':
+				//case 'triggered':
+					matchingWorkflowStatus.node_status = workflowStatusEvent.node_status;
 					break;
-				case 'completed':
+				case WorkflowStatuses.COMPLETED:
 					// Add a delay to ensure completed status is updated in quick executing workflows
 					setTimeout(() => {
 						matchingWorkflowStatus.completed_at = workflowStatusEvent.timestamp;
 						this.workflowStatusCompletedRelativeTimes[matchingWorkflowStatus.execution_id] =
 							this.utils.getRelativeLocalTime(workflowStatusEvent.timestamp);
-						delete matchingWorkflowStatus.current_action;
+						delete matchingWorkflowStatus.node_status;
 					}, 250);
 					break;
-				case 'aborted':
+				case WorkflowStatuses.ABORTED:
 					matchingWorkflowStatus.completed_at = workflowStatusEvent.timestamp;
 					this.workflowStatusCompletedRelativeTimes[matchingWorkflowStatus.execution_id] =
 						this.utils.getRelativeLocalTime(workflowStatusEvent.timestamp);
@@ -252,67 +251,68 @@ export class ExecutionComponent implements OnInit, AfterViewChecked, OnDestroy {
 	/**
 	 * Initiates an EventSource for action statuses from the server. Binds various events to the event handler.
 	 */
-	getActionStatusSSE(workflowExecutionId: string = null): void {
-		if (this.actionStatusEventSource) this.actionStatusEventSource.close();
+	getNodeStatusSSE(workflowExecutionId: string = null): void {
+		if (this.nodeStatusEventSource) this.nodeStatusEventSource.close();
 
 		let url = `/api/streams/workflowqueue/actions?summary=true`;
 		if (workflowExecutionId) url += `&workflow_execution_id=${ workflowExecutionId }`;
 
 		this.authService.getEventSource(url)
 			.then(eventSource => {
-				this.actionStatusEventSource = eventSource;
-				this.actionStatusEventSource.addEventListener('started', (e: any) => this.actionStatusEventHandler(e));
-				this.actionStatusEventSource.addEventListener('success', (e: any) => this.actionStatusEventHandler(e));
-				this.actionStatusEventSource.addEventListener('failure', (e: any) => this.actionStatusEventHandler(e));
-				this.actionStatusEventSource.addEventListener('awaiting_data', (e: any) => this.actionStatusEventHandler(e));
+				this.nodeStatusEventSource = eventSource;
+				this.nodeStatusEventSource.onerror = (e: any) => this.statusEventErrorHandler(e);
+
+				Object.values(NodeStatuses)
+					  .forEach(status => this.nodeStatusEventSource.addEventListener(status, (e: any) => this.nodeStatusEventHandler(e)));
 			});
 	}
 
 	/**
-	 * Handles an EventSource message for Action Status. 
-	 * Updates the parent workflow status' current_action if applicable.
+	 * Handles an EventSource message for Action Status.
+	 * Updates the parent workflow status' current_node if applicable.
 	 * Will add/update action statuses for display if the parent workflow execution is 'loaded' in the modal.
 	 * @param message EventSource message for action status
 	 */
-	actionStatusEventHandler(message: any): void {
-		const actionStatusEvent = plainToClass(ActionStatusEvent, (JSON.parse(message.data) as object));
+	nodeStatusEventHandler(message: any): void {
+		console.log('a', message, JSON.parse(message.data));
+		const nodeStatusEvent = plainToClass(NodeStatusEvent, (JSON.parse(message.data) as object));
 
 		// if we have a matching workflow status, update the current app/action info.
 		const matchingWorkflowStatus = this.workflowStatuses
-			.find(ws => ws.execution_id === actionStatusEvent.workflow_execution_id);
+			.find(ws => ws.execution_id === nodeStatusEvent.execution_id);
 
 		if (matchingWorkflowStatus) {
-			matchingWorkflowStatus.current_action = {
-				execution_id: actionStatusEvent.execution_id,
-				id: actionStatusEvent.action_id,
-				name: actionStatusEvent.name,
-				app_name: actionStatusEvent.app_name,
-				action_name: actionStatusEvent.action_name,
-			};
+			matchingWorkflowStatus.node_status = plainToClass(NodeStatusSummary, {
+				execution_id: nodeStatusEvent.execution_id,
+				id: nodeStatusEvent.node_id,
+				name: nodeStatusEvent.name,
+				app_name: nodeStatusEvent.app_name,
+				label: nodeStatusEvent.label,
+			});
 		}
 
 		// also add this to the modal if possible, or update the existing data.
-		if (this.loadedWorkflowStatus && this.loadedWorkflowStatus.execution_id === actionStatusEvent.workflow_execution_id) {
-			const matchingActionStatus = this.loadedWorkflowStatus.action_statuses
-				.find(r => r.execution_id === actionStatusEvent.execution_id);
+		if (this.loadedWorkflowStatus && this.loadedWorkflowStatus.execution_id === nodeStatusEvent.execution_id) {
+			const matchingNodeStatus = this.loadedWorkflowStatus.node_statuses
+				.find(r => r.execution_id === nodeStatusEvent.execution_id);
 
-			if (matchingActionStatus) {
-				matchingActionStatus.status = actionStatusEvent.status;
+			if (matchingNodeStatus) {
+				matchingNodeStatus.status = nodeStatusEvent.status;
 
 				switch (message.type) {
-					case 'started':
-						matchingActionStatus.started_at = actionStatusEvent.timestamp;
-						this.actionStatusStartedRelativeTimes[matchingActionStatus.execution_id] =
-							this.utils.getRelativeLocalTime(actionStatusEvent.timestamp);
+					case NodeStatuses.EXECUTING:
+						matchingNodeStatus.started_at = nodeStatusEvent.started_at;
+						this.nodeStatusStartedRelativeTimes[matchingNodeStatus.execution_id] =
+							this.utils.getRelativeLocalTime(nodeStatusEvent.started_at);
 						break;
-					case 'success':
-					case 'failure':
-						matchingActionStatus.completed_at = actionStatusEvent.timestamp;
-						matchingActionStatus.result = actionStatusEvent.result;
-						this.actionStatusCompletedRelativeTimes[matchingActionStatus.execution_id] =
-							this.utils.getRelativeLocalTime(actionStatusEvent.timestamp);
+					case NodeStatuses.SUCCESS:
+					case NodeStatuses.FAILURE:
+						matchingNodeStatus.completed_at = nodeStatusEvent.completed_at;
+						matchingNodeStatus.result = nodeStatusEvent.result;
+						this.nodeStatusCompletedRelativeTimes[matchingNodeStatus.execution_id] =
+							this.utils.getRelativeLocalTime(nodeStatusEvent.completed_at);
 						break;
-					case 'awaiting_data':
+					case NodeStatuses.AWAITING_DATA:
 						// don't think anything needs to happen here
 						break;
 					default:
@@ -320,17 +320,29 @@ export class ExecutionComponent implements OnInit, AfterViewChecked, OnDestroy {
 						break;
 				}
 
-				this.calculateLocalizedTimes(matchingActionStatus);
+				this.calculateLocalizedTimes(matchingNodeStatus);
 			} else {
-				const newActionStatus = actionStatusEvent.toNewActionStatus();
-				this.calculateLocalizedTimes(newActionStatus);
-				this.loadedWorkflowStatus.action_statuses.push(newActionStatus);
+				const newNodeStatus = nodeStatusEvent.toNewNodeStatus();
+				this.calculateLocalizedTimes(newNodeStatus);
+				this.loadedWorkflowStatus.node_statuses.push(newNodeStatus);
 				// Induce change detection by slicing array
-				this.loadedWorkflowStatus.action_statuses = this.loadedWorkflowStatus.action_statuses.slice();
+				this.loadedWorkflowStatus.node_statuses = this.loadedWorkflowStatus.node_statuses.slice();
 			}
 		}
 
 		this.filterWorkflowStatuses();
+	}
+
+	statusEventErrorHandler(e: any) {
+		if (this.nodeStatusEventSource && this.nodeStatusEventSource.close)
+			this.nodeStatusEventSource.close();
+		if (this.workflowStatusEventSource && this.workflowStatusEventSource.close)
+			this.workflowStatusEventSource.close();
+
+		const options = {backdrop: undefined, closeButton: false, buttons: { ok: { label: 'Reload Page' }}}
+		this.utils
+			.alert('The server stopped responding. Reload the page to try again.', options)
+			.then(() => location.reload(true))
 	}
 
 	/**
@@ -408,30 +420,30 @@ export class ExecutionComponent implements OnInit, AfterViewChecked, OnDestroy {
 	 * @param event JS Event from the hyperlink click
 	 * @param workflowStatus Workflow Status to get action results for
 	 */
-	openActionStatusModal(event: Event, workflowStatus: WorkflowStatus): void {
+	openNodeStatusModal(event: Event, workflowStatus: WorkflowStatus): void {
 		event.preventDefault();
 
-		let actionResultsPromise: Promise<void>;
+		let nodeResultsPromise: Promise<void>;
 		if (this.loadedWorkflowStatus && this.loadedWorkflowStatus.execution_id === workflowStatus.execution_id) {
-			actionResultsPromise = Promise.resolve();
+			nodeResultsPromise = Promise.resolve();
 		} else {
-			actionResultsPromise = this.executionService.getWorkflowStatus(workflowStatus.execution_id)
+			nodeResultsPromise = this.executionService.getWorkflowStatus(workflowStatus.execution_id)
 				.then(fullWorkflowStatus => {
 					this.calculateLocalizedTimes(fullWorkflowStatus);
-					fullWorkflowStatus.action_statuses.forEach(actionStatus => {
-						this.calculateLocalizedTimes(actionStatus);
+					fullWorkflowStatus.node_statuses.forEach(nodeStatus => {
+						this.calculateLocalizedTimes(nodeStatus);
 					});
 					this.loadedWorkflowStatus = fullWorkflowStatus;
 					this.recalculateRelativeTimes();
-					
+
 				})
 				.catch(e => {
 					this.toastrService.error(`Error loading action results for "${workflowStatus.name}": ${e.message}`)
 				});
 		}
 
-		actionResultsPromise.then(() => {
-			($('.actionStatusModal') as any).modal('show');
+		nodeResultsPromise.then(() => {
+			($('.nodeStatusModal') as any).modal('show');
 		});
 	}
 
@@ -470,49 +482,49 @@ export class ExecutionComponent implements OnInit, AfterViewChecked, OnDestroy {
 	}
 
 	/**
-	 * Gets the app name from a current action object or returns N/A if undefined.
-	 * @param currentAction CurrentAction to use as input
+	 * Gets the app name from a current node object or returns N/A if undefined.
+	 * @param nodeStatusSummary NodeStatusSummary to use as input
 	 */
-	getAppName(currentAction: CurrentAction): string {
-		if (!currentAction) { return'N/A'; }
-		return currentAction.app_name;
+	getAppName(nodeStatusSummary: NodeStatusSummary): string {
+		if (!nodeStatusSummary) { return'N/A'; }
+		return nodeStatusSummary.app_name;
 	}
 
 	/**
-	 * Gets the action name from a current action object or returns N/A if undefined.
-	 * @param currentAction CurrentAction to use as input
+	 * Gets the action name from a current node object or returns N/A if undefined.
+	 * @param nodeStatusSummary NodeStatusSummary to use as input
 	 */
-	getActionName(currentAction: CurrentAction): string {
-		if (!currentAction) { return'N/A'; }
-		let output = currentAction.name;
-		if (output !== currentAction.action_name) { output = `${output} (${currentAction.action_name})`; }
+	getActionName(nodeStatusSummary: NodeStatusSummary): string {
+		if (!nodeStatusSummary) { return'N/A'; }
+		let output = nodeStatusSummary.label;
+		if (output !== nodeStatusSummary.name) { output = `${output} (${nodeStatusSummary.name})`; }
 		return output;
 	}
 
 	/**
 	 * Simple comparator function for the datatable sort on the app name column.
-	 * @param propA Left side CurrentAction
-	 * @param propB Right side CurrentAction
+	 * @param propA Left side NodeStatusSummary
+	 * @param propB Right side NodeStatusSummary
 	 */
-	appNameComparator(propA: CurrentAction, propB: CurrentAction) {
+	appNameComparator(propA: NodeStatusSummary, propB: NodeStatusSummary) {
 		if (!propA) { return 1; }
 		if (!propB) { return -1; }
-		
+
 		if (propA.app_name.toLowerCase() < propB.app_name.toLowerCase()) { return -1; }
 		if (propA.app_name.toLowerCase() > propB.app_name.toLowerCase()) { return 1; }
 	}
 
 	/**
 	 * Simple comparator function for the datatable sort on the action name column.
-	 * @param propA Left side CurrentAction
-	 * @param propB Right side CurrentAction
+	 * @param propA Left side NodeStatusSummary
+	 * @param propB Right side NodeStatusSummary
 	 */
-	actionNameComparator(propA: CurrentAction, propB: CurrentAction) {
+	actionNameComparator(propA: NodeStatusSummary, propB: NodeStatusSummary) {
 		if (!propA) { return 1; }
 		if (!propB) { return -1; }
-		
-		if (propA.action_name.toLowerCase() < propB.action_name.toLowerCase()) { return -1; }
-		if (propA.action_name.toLowerCase() > propB.action_name.toLowerCase()) { return 1; }
+
+		if (propA.name.toLowerCase() < propB.name.toLowerCase()) { return -1; }
+		if (propA.name.toLowerCase() > propB.name.toLowerCase()) { return 1; }
 	}
 
 	/**
@@ -523,26 +535,26 @@ export class ExecutionComponent implements OnInit, AfterViewChecked, OnDestroy {
 
 		this.workflowStatuses.forEach(workflowStatus => {
 			if (workflowStatus.started_at) {
-				this.workflowStatusStartedRelativeTimes[workflowStatus.execution_id] = 
+				this.workflowStatusStartedRelativeTimes[workflowStatus.execution_id] =
 					this.utils.getRelativeLocalTime(workflowStatus.started_at);
 			}
 			if (workflowStatus.completed_at) {
-				this.workflowStatusCompletedRelativeTimes[workflowStatus.execution_id] = 
+				this.workflowStatusCompletedRelativeTimes[workflowStatus.execution_id] =
 					this.utils.getRelativeLocalTime(workflowStatus.completed_at);
 			}
 		});
 
-		if (!this.loadedWorkflowStatus || !this.loadedWorkflowStatus.action_statuses || 
-			!this.loadedWorkflowStatus.action_statuses.length ) { return; }
+		if (!this.loadedWorkflowStatus || !this.loadedWorkflowStatus.node_statuses ||
+			!this.loadedWorkflowStatus.node_statuses.length ) { return; }
 
-		this.loadedWorkflowStatus.action_statuses.forEach(actionStatus => {
-			if (actionStatus.started_at) {
-				this.actionStatusStartedRelativeTimes[actionStatus.execution_id] = 
-					this.utils.getRelativeLocalTime(actionStatus.started_at);
+		this.loadedWorkflowStatus.node_statuses.forEach(nodeStatus => {
+			if (nodeStatus.started_at) {
+				this.nodeStatusStartedRelativeTimes[nodeStatus.execution_id] =
+					this.utils.getRelativeLocalTime(nodeStatus.started_at);
 			}
-			if (actionStatus.completed_at) {
-				this.actionStatusCompletedRelativeTimes[actionStatus.execution_id] = 
-					this.utils.getRelativeLocalTime(actionStatus.completed_at);
+			if (nodeStatus.completed_at) {
+				this.nodeStatusCompletedRelativeTimes[nodeStatus.execution_id] =
+					this.utils.getRelativeLocalTime(nodeStatus.completed_at);
 			}
 		});
 	}
@@ -551,11 +563,11 @@ export class ExecutionComponent implements OnInit, AfterViewChecked, OnDestroy {
 	 * Adds/updates localized time strings to a status object.
 	 * @param status Workflow or Action Status to mutate
 	 */
-	calculateLocalizedTimes(status: WorkflowStatus | ActionStatus): void {
-		if (status.started_at) { 
+	calculateLocalizedTimes(status: WorkflowStatus | NodeStatus): void {
+		if (status.started_at) {
 			status.localized_started_at = this.utils.getLocalTime(status.started_at);
 		}
-		if (status.completed_at) { 
+		if (status.completed_at) {
 			status.localized_completed_at = this.utils.getLocalTime(status.completed_at);
 		}
 	}

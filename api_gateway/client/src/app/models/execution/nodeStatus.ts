@@ -2,25 +2,35 @@ import { Type, Exclude } from 'class-transformer';
 
 import { Argument } from '../playbook/argument';
 
-export class ActionStatus {
-	workflow_execution_id: string;
+export enum NodeStatuses {
+	  //PAUSED = "PAUSED",
+    AWAITING_DATA = "AWAITING_DATA",
+    //PENDING = "PENDING",
+    //COMPLETED = "COMPLETED",
+    //ABORTED = "ABORTED",
+    EXECUTING = "EXECUTING",
+    SUCCESS = "SUCCESS",
+    FAILURE = "FAILURE",
+}
 
-	workflow_id: string;
+export class NodeStatus {
 
 	execution_id: string;
 
-	action_id: string;
+	node_id: string;
 
-	name: string;
+	label: string;
 
 	app_name: string;
 
-	action_name: string;
+	name: string;
 
 	/**
 	 * Type of action result. executing, success, failure
 	 */
 	status: string;
+
+	result?: any;
 
 	started_at: string;
 
@@ -28,8 +38,6 @@ export class ActionStatus {
 
 	@Type(() => Argument)
 	arguments: Argument[] = [];
-
-	result?: any;
 
 	@Exclude({ toPlainOnly: true })
 	localized_started_at?: string;
