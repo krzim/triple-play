@@ -1,8 +1,9 @@
 import logging
+import uuid
 
-from sqlalchemy import Column, String, Boolean, event
+from sqlalchemy import Column, String, Boolean, JSON, event
 from sqlalchemy.orm import relationship
-from sqlalchemy_utils import UUIDType, JSONType
+from sqlalchemy_utils import UUIDType
 from marshmallow import fields, EXCLUDE
 from marshmallow_sqlalchemy import field_for
 from jsonschema import Draft4Validator, ValidationError as JSONSchemaValidationError
@@ -21,7 +22,7 @@ from api_gateway.executiondb.branch import BranchSchema
 from api_gateway.executiondb.parameter import ParameterApi
 from api_gateway.executiondb.workflow_variable import WorkflowVariableSchema
 from api_gateway.executiondb import Execution_Base
-from api_gateway.executiondb.action import Action, ActionSchema
+from api_gateway.executiondb.action import Action, ActionSchema, ActionApi
 from api_gateway.executiondb.executionelement import ExecutionElement
 
 logger = logging.getLogger(__name__)
@@ -38,7 +39,7 @@ class Workflow(ExecutionElement, Execution_Base):
     transforms = relationship("Transform", cascade="all, delete-orphan", passive_deletes=True)
     triggers = relationship("Trigger", cascade="all, delete-orphan", passive_deletes=True)
     is_valid = Column(Boolean, default=False)
-    tags = Column(JSONType)
+    tags = Column(JSON)
     description = Column(String())
     children = ("actions", "branches", "conditions", "transforms", "triggers")
     workflow_variables = relationship("WorkflowVariable", cascade="all, delete-orphan", passive_deletes=True)
@@ -79,41 +80,61 @@ class Workflow(ExecutionElement, Execution_Base):
 
     def validate(self):
         """Validates the object"""
-        node_ids = [action.id_ for action in self.actions] + \
-                   [conditions.id_ for conditions in self.conditions] + \
-                   [transforms.id_ for transforms in self.transforms]
-
-        work_var_ids = [workflow_var.id_ for workflow_var in self.workflow_variables]
-        global_ids = current_app.running_context.execution_db.session.query(GlobalVariable.id_).all()
-
+        node_ids = {node.id_ for node in self.actions + self.conditions + self.transforms}
+        work_var_ids = {workflow_var.id_ for workflow_var in self.workflow_variables}
+        global_ids = set(current_app.running_context.execution_db.session.query(GlobalVariable.id_).all())
         errors = []
         if not self.start and self.actions:
             errors.append("Workflows must have a starting action.")
         elif self.actions and self.start not in node_ids:
             errors.append(f"Workflow start ID {self.start} not found in nodes")
         for branch in self.branches:
+            # Todo: Should these just be removed?
             if branch.source_id not in node_ids:
                 errors.append(f"Branch source ID {branch.source_id} not found in nodes")
             if branch.destination_id not in node_ids:
                 errors.append(f"Branch destination ID {branch.destination_id} not found in nodes")
+
         for action in self.actions:
+            action_api = current_app.running_context.execution_db.session.query(ActionApi).filter(
+                ActionApi.location == f"{action.app_name}.{action.name}"
+            ).first()
+            params = {}
+            for p in action_api.parameters:
+                params[p.name] = {"api": p}
+
             for p in action.parameters:
-                if p.variant != ParameterVariant.STATIC_VALUE.name:
-                    if not validate_uuid4(p.value):
-                        errors.append(f"Value is a reference but {p.value} is not a valid uuid4")
-                    elif p.value not in node_ids and p.value not in work_var_ids and p.value not in global_ids:
-                        errors.append(f"Parameter {p.name} refers to {p.value} not found in {p.variant}.")
+                params.get(p.name, {})["wf"] = p
+
+            for name, pair in params.items():
+                api = pair.get("api")
+                wf = pair.get("wf")
+
+                if not api:
+                    errors.append(f"Parameter {wf.name} found in workflow but not in {action.app_name} API specification.")
+                if not wf and api.required:
+                    if api.placeholder:
+                        wf = api.generate_parameter_from_default()
+                        action.parameters.append(wf)
+                    else:
+                        errors.append(f"Parameter {api.name} is missing but is required by {action.app_name} API and has no placeholder.")
+
+                if not wf.value and api.placeholder:
+                    wf.value = api.placeholder
+
+                if wf.variant != ParameterVariant.STATIC_VALUE.name:
+                    if not validate_uuid4(wf.value):
+                        errors.append(f"Parameter {wf.name} is a reference but {wf.value} is not a valid uuid4")
+                    elif uuid.UUID(wf.value) not in node_ids.union(work_var_ids, global_ids):
+                        errors.append(f"Parameter {wf.name} refers to {wf.value} not found in {wf.variant}.")
                 else:
-                    api = current_app.running_context.execution_db.session.query(ParameterApi).filter(
-                        ParameterApi.location == f"{action.app_name}.{action.name}:{p.name}"
-                    ).first()
                     try:
-                       print(".")# Draft4Validator(api.schema).validate(p.value)
+                        Draft4Validator(api.schema).validate(wf.value)
                     except JSONSchemaValidationError as e:
-                        errors.append(f"Parameter {p.name} value {p.value} not valid under schema {api.schema}.")
+                        errors.append(f"Parameter {wf.name} value {wf.value} not valid under schema {api.schema}.")
 
         self.errors = errors
-        self.is_valid = self._is_valid
+        self.is_valid = not bool(errors)
 
 
 @event.listens_for(Workflow, "before_update")
@@ -132,7 +153,7 @@ class WorkflowSchema(ExecutionElementBaseSchema):
     transforms = fields.Nested(TransformSchema, many=True)
     triggers = fields.Nested(TriggerSchema, many=True)
     workflow_variables = fields.Nested(WorkflowVariableSchema, many=True)
-    tags = fields.Raw()
+    tags = field_for(Workflow, 'tags')
     description = field_for(Workflow, 'description')
 
     # TODO: determine if this is needed

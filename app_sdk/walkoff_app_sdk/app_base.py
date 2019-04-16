@@ -86,9 +86,13 @@ class AppBase:
             i = 0
             start = time.time()
             while action is None:
-                src_key = self.action_queue_keys[i % len(self.action_queue_keys)]
+                src_key = self.action_queue_keys[i]
                 action = await self.redis.rpoplpush(src_key, REDIS_ACTIONS_IN_PROCESS)
+
                 i += 1
+                if not i % len(self.action_queue_keys):
+                    i = 0
+
                 await asyncio.sleep(0)
 
                 if time.time() - start > 30:  # We've timed out with no work. Guess we'll die now...
@@ -117,10 +121,10 @@ class AppBase:
                 else:
                     self.logger.error(f"App {self.__class__.__name__}.{action.name} is not callable")
                     action_result = NodeStatusMessage.failure_from_node(action, action.execution_id,
-                                                                        error="Action not callable")
+                                                                        result="Action not callable")
 
             except Exception as e:
-                action_result = NodeStatusMessage.failure_from_node(action, action.execution_id, error=repr(e))
+                action_result = NodeStatusMessage.failure_from_node(action, action.execution_id, result=repr(e))
                 self.logger.exception(f"Failed to execute {action.label}-{action.id_}")
 
             await self.redis.lpush(action.execution_id, message_dumps(action_result))
@@ -128,11 +132,8 @@ class AppBase:
         else:
             self.logger.error(f"App {self.__class__.__name__} has no method {action.name}")
             action_result = NodeStatusMessage.failure_from_node(action, action.execution_id,
-                                                                error="Action does not exist")
+                                                                result="Action does not exist")
             await self.redis.lpush(action.execution_id, message_dumps(action_result))
-
-        # Remove the action from the in process queue regardless of success
-        await self.redis.lrem(REDIS_ACTIONS_IN_PROCESS, 0, workflow_dumps(action))
 
     @classmethod
     async def run(cls):

@@ -2,8 +2,8 @@ import logging
 
 from jsonschema import Draft4Validator, SchemaError, ValidationError as JSONSchemaValidationError
 
-from sqlalchemy import Column, ForeignKey, String, orm, event, Boolean
-from sqlalchemy_utils import UUIDType, JSONType
+from sqlalchemy import Column, ForeignKey, String, JSON, orm, event, Boolean
+from sqlalchemy_utils import UUIDType
 from marshmallow import fields, EXCLUDE, validates_schema, ValidationError as MarshmallowValidationError
 from marshmallow_sqlalchemy import field_for
 
@@ -11,6 +11,8 @@ from api_gateway.executiondb.schemas import ExecutionElementBaseSchema
 
 from api_gateway.executiondb import Execution_Base
 from api_gateway.executiondb.executionelement import ExecutionElement
+
+from common.workflow_types import ParameterVariant
 
 logger = logging.getLogger(__name__)
 
@@ -21,10 +23,10 @@ class ParameterApi(Execution_Base, ExecutionElement):
     name = Column(String(), nullable=False)
     location = Column(String(), nullable=False)
     description = Column(String())
-    example = Column(JSONType)
+    example = Column(JSON)
     required = Column(Boolean())
-    placeholder = Column(JSONType)
-    schema = Column(JSONType)
+    placeholder = Column(JSON)
+    schema = Column(JSON)
 
     def __init__(self, name, location, id_=None, errors=None, description=None, example=None, required=False,
                  placeholder=None, schema=None):
@@ -33,19 +35,22 @@ class ParameterApi(Execution_Base, ExecutionElement):
         self.location = location
         self.description = description if description else ""
         self.example = example if example else ""
-        self.required = required if required else ""
+        self.required = required if required else False
         self.placeholder = placeholder if placeholder else ""
-        self.schema = schema if schema else ""
+        self.schema = schema if schema else {}
+
+    def generate_parameter_from_default(self):
+        return Parameter(self.name, ParameterVariant.STATIC_VALUE.name, value=self.placeholder)
 
 
 class ParameterApiSchema(ExecutionElementBaseSchema):
     name = field_for(ParameterApi, 'name', required=True)
     location = field_for(ParameterApi, 'location', required=True)
     description = field_for(ParameterApi, 'description')
-    example = fields.Raw()
+    example = field_for(ParameterApi, 'example')
     required = field_for(ParameterApi, 'required')
-    placeholder = fields.Raw()
-    schema = fields.Raw()
+    placeholder = field_for(ParameterApi, 'placeholder')
+    schema = field_for(ParameterApi, 'schema')
 
     class Meta:
         model = ParameterApi
@@ -54,6 +59,9 @@ class ParameterApiSchema(ExecutionElementBaseSchema):
     @validates_schema
     def validate_parameter_api(self, data):
         stage = ""
+        if not data.get('required', False) and not data.get('placeholder'):
+            raise MarshmallowValidationError(f"Parameter {data['name']} is not required but has no default value.")
+
         try:
             if "schema" in data:
                 stage = "schema"
@@ -70,9 +78,11 @@ class ParameterApiSchema(ExecutionElementBaseSchema):
             if stage == "schema":
                 message = str(e)
             elif stage == "example":
-                message = f"Example given ({data['example']}) is not valid under the schema {data['schema']}"
+                message = (f"Parameter {data['name']} has example {data['example']} which is not valid under the "
+                           f"given schema {data['schema']}")
             elif stage == "placeholder":
-                message = f"Placeholder given ({data['placeholder']}) is not valid under the schema {data['schema']}"
+                message = (f"Parameter {data['name']} has placeholder {data['placeholder']} which is not valid under "
+                           f"the given schema {data['schema']}")
             raise MarshmallowValidationError(message)
 
 
@@ -82,7 +92,7 @@ class Parameter(Execution_Base, ExecutionElement):
     transform_id = Column(UUIDType(binary=False), ForeignKey('transform.id_', ondelete='CASCADE'))
     name = Column(String(255), nullable=False)
     variant = Column(String(255), nullable=False)
-    value = Column(JSONType)
+    value = Column(JSON)
 
     def __init__(self, name, variant, id_=None, errors=None, value=None):
         """Initializes an Parameter object.
@@ -105,32 +115,6 @@ class Parameter(Execution_Base, ExecutionElement):
 
     def validate(self):
         pass
-        # if self.variant != ParameterVariant.STATIC_VALUE.name:
-        #     # Parameter is a reference, verify the uuid is valid
-        #     if not validate_uuid4(self.value):
-        #         message = f"Value is a reference but {self.value} is not a valid uuid4"
-        #         logger.error(message)
-        #         self.errors = [message]
-        #     # ToDo: verify that the uuid exists in the workflow.
-        #     # Doing this with SQLAlchemy results in circular imports.
-        # else:
-        #     # Parameter is a value, verify that the value is valid under the schema given in App Api, if applicable
-        #     api = current_app.running_context.execution_db.session.query(ParameterApi).filter(
-        #         ParameterApi.location == self.api_location
-        #     ).first()
-        #     try:
-        #         Draft4Validator(api.schema).validate(self.value)
-        #     except JSONSchemaValidationError as e:
-        #         message = f"Parameter {self.name} has value {self.value} that is not valid under schema {api.schema}."
-        #         logger.error(message)
-        #         self.errors = [message]
-
-    # def __eq__(self, other):
-    #     return self.name == other.name and self.value == other.value and self.reference == other.reference \
-    #            and self.variant == other.variant
-    #
-    # def __hash__(self):
-    #     return hash(self.id_)
 
 
 @event.listens_for(Parameter, 'before_update')
@@ -145,27 +129,9 @@ class ParameterSchema(ExecutionElementBaseSchema):
     but never both.
     """
     name = field_for(Parameter, 'name', required=True)
-    value = fields.Raw()
+    value = field_for(Parameter, 'value')
     variant = field_for(Parameter, 'variant', required=True)
 
     class Meta:
         model = Parameter
         unknown = EXCLUDE
-
-    # @validates_schema
-    # def validate_argument(self, data):
-    #     has_value = 'value' in data
-    #     has_reference = 'reference' in data and bool(data['reference'])
-    #     if (not has_value and not has_reference) or (has_value and has_reference):
-    #         raise ValidationError('Parameters must have either a value or a reference.', ['value'])
-    #
-    # @post_load
-    # def make_instance(self, data):
-    #     instance = self.instance or self.get_instance(data)
-    #     if instance is not None:
-    #         for key, value in data.items():
-    #             setattr(instance, key, value)
-    #         return instance
-    #     return self.opts.model(**data)
-
-
